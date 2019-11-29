@@ -28,8 +28,8 @@ class Robot():
 
         # Publisher and Subscribers
         self.listener = tf.TransformListener()
-        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
-
+        # self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
         # Start-pose for rowing exercise
         position = np.array([0.15756176236973007, 0.3590548461660456, 0.41006310959573894])
         quaternion = np.array([-0.70700723, -0.00474353, 0.00277345, 0.7071849])
@@ -61,15 +61,17 @@ class Robot():
 
 
         init = True
-        self.rate = rospy.Rate(1)
+        self.rate = rospy.Rate(0.1)
         while not rospy.is_shutdown():
 
             if init:
                 self.free_drive_mode()
                 init = False
+                tmpcmd = 'speedj([0.2,0.3,0.1,0.05,0,0], 0.5, 5)'
+                self.pub.publish(tmpcmd)
 
             rospy.logwarn("POSE %d",pose[0])
-            self.temp_pose(pose,1.2,0.25)
+            # self.temp_pose(pose,1.2,0.25)
             rospy.logwarn("Velocity")
             control_law = self.pose_control()
             self.velocity_cmd(control_law)
@@ -85,12 +87,13 @@ class Robot():
         rospy.loginfo(command)
         self.pub.publish(command)
 
-    def velocity_cmd(self, control_law, acceleration=5, time=0.05):
+    def velocity_cmd(self, control_law, acceleration=5, time=5):
         command = "speedl(" + np.array2string(control_law, precision=3, separator=',') + "," + \
                   str(acceleration) + "," + str(time) + ")"  # 0.3,0.2
         # rospy.loginfo(control_law)
         # print(command)
-        self.pub.publish(command)
+        tmpcmd = 'speedj([0.2,0.3,0.1,0.05,0,0], 0.5, 5)'
+        self.pub.publish(tmpcmd)
 
     def temp_pose(self,pose,a,v,t=0.05,r=0):
         command = "movel([0.6,3,0.1,1,0,4.14]" + "," + str(a)  + "," + str(t) + ")"

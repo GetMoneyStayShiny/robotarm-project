@@ -9,7 +9,6 @@ import math
 import sys, termios, tty, os, time
 import Tkinter as tk
 import threading
-from numpy import matrix
 #import matplotlib.pyplot as plt
 #import matplotlib.figure
 #import matplotlib.animation as animation
@@ -347,8 +346,7 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        #self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
-        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
@@ -533,13 +531,6 @@ class Robot(threading.Thread):
     # control_law is a 6x1 vector with tool speed in x,y and z-direction and rotational speed around x-y and z
     def velocity_cmd(self, control_law, acceleration = 5, time = 0.05):
         command = "speedl(" + np.array2string(control_law, precision= 3, separator=',') +","+ \
-        str(acceleration) + "," + str(time) + ")" #0.3,0.2
-        #rospy.loginfo(control_law)
-        #print(command)
-        self.pub.publish(command)
-
-    def q_dot(self, control_law, acceleration = 5, time = 0.1):
-        command = "speedj(" + np.array2string(control_law, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
         #print(command)
@@ -749,46 +740,16 @@ class Robot(threading.Thread):
         #position = np.array([0.3988074665985663, -0.2106094069148962, 0.39359153019942167])
         #quaternion = np.array([0.4993599, 0.50327672, 0.50019774, 0.49714627])
 
-
-
-
-
-   
-        Joint_Curr = [0.0,0.0,0.0,0.0,0.0,0.0]
-        q1 = Joint_Curr[0]
-        q2 = Joint_Curr[1]
-        q3 = Joint_Curr[2]
-        q4 = Joint_Curr[3]
-        q5 = Joint_Curr[4]
-        q6 = Joint_Curr[5]
-
-        d1 =  0.118
-        a2 = -0.6127
-        a3 = -0.5716
-        d4 =  0.1639
-        d5 =  0.1157
-        d6 =  0.0922
-
-
-
-        Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
-
-        Jac_psudo = np.linalg.pinv(Jac)
-        
-
-        start_pose = np.array([position, quaternion])
+        start_pose = np.array([position,quaternion])
         while (not rospy.is_shutdown()): 
 
             # Publishing, for being able to plot later
             self.pub_x.publish(self.getTaskPosi()[0]-start_pose[0][0])
             self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
             self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
-            
-            
-            
 
             forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))
-                        
+            
             force_now = int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
             global red
             red = force_now*(239-30)/250 + 30 
@@ -815,7 +776,7 @@ class Robot(threading.Thread):
 
             controller = self.impedance_control(pose,res)
             #controller = self.pose_control(pose)
-            """
+            
             
             if(guide_z and atHome):
                 controller = self.guide_z_control()
@@ -865,13 +826,10 @@ class Robot(threading.Thread):
             if(self.getTaskEuler()[2] <= -0.289 and controller[5]<0):
                 controller[5] = 0           
 
-            """
-            q = np.dot(Jac_psudo, np.transpose(controller))
-            aba = np.asarray(q).reshape(-1)
             
             #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
             if(run_robot):
-                self.q_dot(aba)  
+                self.velocity_cmd(controller)  
 
             
             self.rate.sleep()
@@ -883,8 +841,8 @@ if __name__ == '__main__':
         robot_thread.daemon = True
         robot_thread.start()
 
-        #gui_thread = Interface(root)
-        #gui_thread.setName("GUI Thread")
+        gui_thread = Interface(root)
+        gui_thread.setName("GUI Thread")
        
         root.mainloop()
          
