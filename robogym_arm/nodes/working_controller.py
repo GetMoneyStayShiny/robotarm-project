@@ -27,7 +27,7 @@ from PIL import ImageTk, Image
 
 root = Tk()
 #popup = Toplevel()
-home = 0
+
 offset = 0
 resistance = 50
 str_res = StringVar()
@@ -536,6 +536,30 @@ class Robot(threading.Thread):
         return Jac_psudo
 
 #######################################
+############ NEW FUNCTION #############
+#######################################
+
+    def findPosition(self):
+	roll = 1.5155    
+        pitch = -0.3226
+        yaw = 0.1297
+
+        rospy.logwarn("ROLL %f",roll)
+        rospy.logwarn("PITCH %f", pitch)
+        rospy.logwarn("YAW %f", yaw)
+
+        newQut = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+
+        rospy.loginfo(newQut)
+	global V_ref
+	V_ref = matrix([[0],[0],[0],[0],[0],[0]])
+	#return newQut
+
+    def goalPosition(self, position, quaternion):
+	position = np.array([-0.17239, -0.38559, 0.46098])
+        quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
+        return position, quaternion
+#######################################
 ############ UR FUNCTIONS #############
 #######################################
 
@@ -785,13 +809,13 @@ class Robot(threading.Thread):
 #--------------------------------------------------------------------
     def run(self):
         #--Simulation--
-	global home
+
         #position = np.array([-0.12, -0.43, 0.26])
-	position = np.array([-0.17239, -0.38559, 0.46098])
+	#position = np.array([-0.17239, -0.38559, 0.46098])
         #quaternion = np.array([-2.91e-04, 9.998e-01, 1.245e-02, 1.25e-02]) 
 	
         #quaternion = np.array([3.49848602e-06,  9.99961671e-01, -3.99984690e-04,  8.74621458e-03])
-        quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
+        #quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
 	#--Real robot--  
         #position = np.array([0.20864163268953798, 0.2901168672870089, 0.7255072413646502])
         #quaternion = np.array([0.95663979,-0.29068509,-0.01717201,-0.00689979])
@@ -804,21 +828,15 @@ class Robot(threading.Thread):
         #position = np.array([0.3988074665985663, -0.2106094069148962, 0.39359153019942167])
         #quaternion = np.array([0.4993599, 0.50327672, 0.50019774, 0.49714627])
 	
-        
-        roll = 1.5155    
-        pitch = -0.3226
-        yaw = 0.1297
 
-        rospy.logwarn("ROLL %f",roll)
-        rospy.logwarn("PITCH %f", pitch)
-        rospy.logwarn("YAW %f", yaw)
-
-        newQut = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
-
-        rospy.loginfo(newQut)
-
-        
         #print Jac_psudo
+
+
+
+	
+	position = np.array([0, 0, 0])
+        quaternion = np.array([0, 0,  0,  0])
+        position, quaternion = self.goalPosition(position,quaternion)
 	
         start_pose = np.array([position, quaternion])
         while (not rospy.is_shutdown()): 
@@ -854,22 +872,31 @@ class Robot(threading.Thread):
             #print(run_robot)
             #print(atHome)
 
-            controller = self.impedance_control(pose,res)
-            #controller = self.pose_control(pose)
-            #print controller
-            """
-            if(guide_z and atHome):
-                #controller = self.guide_z_control()
-		controller = np.array([0.0,0.0,0.0,0.0,0.0,0.0])
-                position = np.array([0.15756176236973007, 0.3590548461660456, self.getTaskPosi()[2]])
-                quaternion = np.array([-0.70700723, -0.00474353, 0.00277345, 0.7071849])
-                start_pose = np.array([position,quaternion])
-	        #print('zguide')
-            else:
-                #print('impedance')
-                controller = self.impedance_control(pose,res)
-            """
-                
+
+	    #######################################
+            ############ MAIN  ####################
+            ####################################### 
+	    controller = self.impedance_control(pose,res)
+            Jac_psudo = self.jac_function()
+	    V_ref = np.transpose(controller)
+	    #self.findPosition()
+	    dq = np.matmul(Jac_psudo, V_ref)
+	    dq_value = np.asarray(dq).reshape(-1)
+	    #print dq_value
+	    
+            self.q_dot(dq_value)
+
+
+
+
+
+
+
+
+
+
+
+
 
             #######################################
             ############ Safety Limits ############
@@ -906,38 +933,11 @@ class Robot(threading.Thread):
                 controller[5] = 0
             if(self.getTaskEuler()[2] <= -0.289 and controller[5]<0):
                 controller[5] = 0           
-	    V_ref = matrix([[0],[0],[0],[0],[0],[0]])
-	    Jac_psudo = self.jac_function()
-	    print Jac_psudo
-            #dq = np.matmul(Jac_psudo, np.transpose(controller))
-            
 	    
-	    #q = Jac_psudo*matrix ( [[controller[0]],[controller[1]],[controller[2]],[controller[3]],[controller[4]],[controller[5]]] )
-            
-	    #dq_value = np.array([-6.1784, -1.57, -2.35619, -2.3212, -1.56, -0.01014])
-            #print self.q
-	    if( self.q[0] < -1.3 and self.q[1] < -1.3 and self.q[2] < -1.5 and self.q[3] < -1.1 and self.q[4] > 1.5):
 
-	    	#dq = Jac_psudo*V_ref
-		#self.mode = 'free drive mode'
-                home = 1
-		#print("hej")
-	    if home == 1:
-		#controller = np.array([0.0,-0.01,0.0,0.0,0.0,0.0])
-                #position = np.array([-0.1346, -0.93141, 0.05459])
-                #quaternion = np.array([-0.04883505, 0.68830866, -0.05110866, -0.72196554])
-                #start_pose = np.array([position, quaternion])
-		print("hej")
-            #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
-            
-	    #dq = Jac_psudo*V_ref
-	    dq = np.matmul(Jac_psudo, np.transpose(controller))
-	    dq_value = np.asarray(dq).reshape(-1)
-	    #print dq_value
-	    if(run_robot):
-            	self.q_dot(dq_value)
-		
-		#self.velocity_cmd(controller)
+
+
+	    
             
             self.rate.sleep()
 
