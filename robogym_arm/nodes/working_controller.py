@@ -27,7 +27,7 @@ from PIL import ImageTk, Image
 
 root = Tk()
 #popup = Toplevel()
-
+home = 0
 offset = 0
 resistance = 50
 str_res = StringVar()
@@ -347,8 +347,8 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
-        #self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
+        #self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
@@ -392,7 +392,7 @@ class Robot(threading.Thread):
 
 
 
-    def impedance_control(self, desired_pose, k, c = 80, force_scaling=0.0001):
+    def impedance_control(self, desired_pose, k, c = 80, force_scaling=0.3):
         c=float(c)
         k=float(k)
         self.mode = 'impedance controller'
@@ -415,13 +415,12 @@ class Robot(threading.Thread):
 
         #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
         velocity = np.append(np.array(self.getToolLinearVelocity()) ,np.array([0,0,0]))
-        #measured_force = self.reference_frame('tool', self.getWrench())
+        measured_force = self.reference_frame('tool', self.getWrench())
         force_array = np.array([0,0,0])
-	#print len(np.array(self.force_sensor))
-	#print len(force_array)
+
         measured = np.append(np.array(self.force_sensor), force_array)
-	print measured
-	#measured_force = self.reference_frame('tool', self.force_sensor)
+	#print measured
+	#measured_force = self.reference_frame('tool', self.getWrench())
         #print self.force_sensor
 	kp = 2
         kd = 1
@@ -431,9 +430,9 @@ class Robot(threading.Thread):
         #control_law = kp*error
         #control_law = k/c*error
 	#print measured_force
-        control_law = k/c*error + force_scaling/c*measured
+        control_law = k/c*error + force_scaling/c*measured_force
         #control_law = force_scaling/c * measured_force
-       
+       	#print control_law
         #print("error ", error)
         #print("force ", measured_force)
         #testSelectionVector = np.array([0.5,1,0.5,1,1,1])
@@ -491,8 +490,50 @@ class Robot(threading.Thread):
         control_law = desire_velocity + kd_inv * ( position_term + (  measured_force ) ) #force  is measured wrt the base frame(not true anymore) 
         return self.reference_frame(frame,control_law)
  
+
     def force_sensor_reset(self):      
         self.pub_reset.publish(True)
+
+
+
+
+#######################################
+############ JACOBIAN #################
+#######################################
+
+    def jac_function(self):   
+	q1 = self.q[0]
+	q2 = self.q[1]
+	q3 = self.q[2]
+	q4 = self.q[3]
+	q5 = self.q[4]
+	q6 = self.q[5]
+
+	#print q6
+
+	#print self.q
+	#print q4
+	#print 
+	"""
+        q1 = -1.96
+        q2 = -1.57
+        q3 = -0.75
+        q4 = -0.741
+        q5 = -1.54
+        q6 = -0.005
+	"""
+
+	d1 =  0.1273
+        a2 = -0.612
+        a3 = -0.5723
+        d4 =  0.1639
+        d5 =  0.0157
+        d6 =  0.0922
+   
+        Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
+
+        Jac_psudo = np.linalg.pinv(Jac)
+        return Jac_psudo
 
 #######################################
 ############ UR FUNCTIONS #############
@@ -545,7 +586,7 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 0.1, time = 0.1):
+    def q_dot(self, dq_value, acceleration = 5, time = 0.05):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
@@ -744,11 +785,13 @@ class Robot(threading.Thread):
 #--------------------------------------------------------------------
     def run(self):
         #--Simulation--
-        position = np.array([-0.12, -0.43, 0.26+offset])
+	global home
+        #position = np.array([-0.12, -0.43, 0.26])
+	position = np.array([-0.17239, -0.38559, 0.46098])
         #quaternion = np.array([-2.91e-04, 9.998e-01, 1.245e-02, 1.25e-02]) 
 	
-        quaternion = np.array([3.49848602e-06,  9.99961671e-01, -3.99984690e-04,  8.74621458e-03])
-        #quaternion = np.array([-0.04883505,  0.68830866, -0.05110866, -0.72196554])
+        #quaternion = np.array([3.49848602e-06,  9.99961671e-01, -3.99984690e-04,  8.74621458e-03])
+        quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
 	#--Real robot--  
         #position = np.array([0.20864163268953798, 0.2901168672870089, 0.7255072413646502])
         #quaternion = np.array([0.95663979,-0.29068509,-0.01717201,-0.00689979])
@@ -760,44 +803,11 @@ class Robot(threading.Thread):
         #New start-pose(start-pose 2), only testing, not compatile with safety limits (yet)
         #position = np.array([0.3988074665985663, -0.2106094069148962, 0.39359153019942167])
         #quaternion = np.array([0.4993599, 0.50327672, 0.50019774, 0.49714627])
-
-
-
-        
-        Joint_Curr = [0.0,0.0,0.0,0.0,0.0,0.0]
-        q1 = Joint_Curr[0]
-        q2 = Joint_Curr[1]
-        q3 = Joint_Curr[2]
-        q4 = Joint_Curr[3]
-        q5 = Joint_Curr[4]
-        q6 = Joint_Curr[5]
-
-	#print q6
-
-	#print self.q
-	#print q4
-	#print 
-	"""
-        q1 = -1.96
-        q2 = -1.57
-        q3 = -0.75
-        q4 = -0.741
-        q5 = -1.54
-        q6 = -0.005
-	"""
-
-	d1 =  0.1273
-        a2 = -0.612
-        a3 = -0.5723
-        d4 =  0.1639
-        d5 =  0.0157
-        d6 =  0.0922
-
 	
         
-        roll = 0.0033
-        pitch = 4.7601
-        yaw = 0.1382
+        roll = 1.5155    
+        pitch = -0.3226
+        yaw = 0.1297
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -809,23 +819,14 @@ class Robot(threading.Thread):
 
         
         #print Jac_psudo
-
+	
         start_pose = np.array([position, quaternion])
         while (not rospy.is_shutdown()): 
-	    q1 = self.q[0]
-	    q2 = self.q[1]
-	    q3 = self.q[2]
-	    q4 = self.q[3]
-	    q5 = self.q[4]
-	    q6 = self.q[5]
 	
             # Publishing, for being able to plot later
             self.pub_x.publish(self.getTaskPosi()[0]-start_pose[0][0])
             self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
             self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
-            Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
-
-            Jac_psudo = np.linalg.pinv(Jac)
             
 
             forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
@@ -856,18 +857,18 @@ class Robot(threading.Thread):
             controller = self.impedance_control(pose,res)
             #controller = self.pose_control(pose)
             #print controller
-            
+            """
             if(guide_z and atHome):
                 #controller = self.guide_z_control()
 		controller = np.array([0.0,0.0,0.0,0.0,0.0,0.0])
                 position = np.array([0.15756176236973007, 0.3590548461660456, self.getTaskPosi()[2]])
                 quaternion = np.array([-0.70700723, -0.00474353, 0.00277345, 0.7071849])
                 start_pose = np.array([position,quaternion])
-
-                #print('zguide')
+	        #print('zguide')
             else:
                 #print('impedance')
                 controller = self.impedance_control(pose,res)
+            """
                 
 
             #######################################
@@ -906,27 +907,33 @@ class Robot(threading.Thread):
             if(self.getTaskEuler()[2] <= -0.289 and controller[5]<0):
                 controller[5] = 0           
 	    V_ref = matrix([[0],[0],[0],[0],[0],[0]])
+	    Jac_psudo = self.jac_function()
+	    print Jac_psudo
             #dq = np.matmul(Jac_psudo, np.transpose(controller))
-            #q = Jac_psudo*V_ref
+            
 	    
 	    #q = Jac_psudo*matrix ( [[controller[0]],[controller[1]],[controller[2]],[controller[3]],[controller[4]],[controller[5]]] )
-                  
+            
 	    #dq_value = np.array([-6.1784, -1.57, -2.35619, -2.3212, -1.56, -0.01014])
             #print self.q
-	    if( self.q[0] < -1.2 and self.q[1] < -1.2 and self.q[2] < -2.1 and self.q[3] < -1.26 and self.q[4] > 1.55 and self.q[5] > 0.23):
+	    if( self.q[0] < -1.3 and self.q[1] < -1.3 and self.q[2] < -1.5 and self.q[3] < -1.1 and self.q[4] > 1.5):
+
 	    	#dq = Jac_psudo*V_ref
 		#self.mode = 'free drive mode'
-                #position = np.array([0.15756176236973007, 0.3590548461660456, self.getTaskPosi()[2]])
-                #quaternion = np.array([-0.70700723, -0.00474353, 0.00277345, 0.7071849])
-                #start_pose = np.array([position,quaternion])
+                home = 1
+		#print("hej")
+	    if home == 1:
+		#controller = np.array([0.0,-0.01,0.0,0.0,0.0,0.0])
+                #position = np.array([-0.1346, -0.93141, 0.05459])
+                #quaternion = np.array([-0.04883505, 0.68830866, -0.05110866, -0.72196554])
+                #start_pose = np.array([position, quaternion])
 		print("hej")
-		    
             #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
             
-
+	    #dq = Jac_psudo*V_ref
 	    dq = np.matmul(Jac_psudo, np.transpose(controller))
-	    dq_value = (np.asarray(dq).reshape(-1))
-	    #print self.q
+	    dq_value = np.asarray(dq).reshape(-1)
+	    #print dq_value
 	    if(run_robot):
             	self.q_dot(dq_value)
 		
