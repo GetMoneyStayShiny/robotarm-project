@@ -37,6 +37,27 @@ rviz
 In the Display tab, under Global Options change the Fixed frame to base
 In the Fixed frame tab (below the Display tab) press "Add"
 then under By display type-->rviz select RobotModel
+
+ROS PLOT
+We have two mehods that we can use to plot data.
+  1. rqt --> This is a standard ros tool to plot data -- I think we might face problems when ploting live data
+     how to run --> 1.Method 1 
+                      - Open terminal 
+                      - rqt
+                      - Plugins-->Visualization-->Plot 
+                      - Then add the topic (In our case /ethdaq_data/wrench/force/x )
+                    2.Method 2 - from the treminal 
+                      - rqt_plot /ethdaq_data/wrench/force/x:y:z <-- This will plot all the three directions
+
+  2. plotjuggler
+     - sudo apt-get install ros-kinetic-plotjuggler
+     - rosrun plotjuggler PlotJuggler
+     - Streaming --> Start:ROS Topic Subscriber --> Then add the relevant topic 
+     - then drag and drop to the plot screen 
+                         
+
+
+
   
 
 
