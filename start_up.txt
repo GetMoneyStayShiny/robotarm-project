@@ -54,7 +54,39 @@ We have two mehods that we can use to plot data.
      - rosrun plotjuggler PlotJuggler
      - Streaming --> Start:ROS Topic Subscriber --> Then add the relevant topic 
      - then drag and drop to the plot screen 
-                         
+
+
+
+
+
+
+pose;
+- 91 
+- 98 
+- 126
+- 46 
+ 91 
+ -1
+
+
+On real robot
+
+comment on publish "URScript"
+comment out publish "interface_hardware"
+
+RUN robot launch
+terminal 1:
+roslaunch ur_modern_driver ur10_bringup.launch robot_ip:=192.168.1.115
+
+RUN force sensor
+terminal 2:
+roslaunch demo.launch
+
+RUN CODE
+terminal 3:
+rosurn robogym_arm working_controller.py
+
+                  
 
 
 

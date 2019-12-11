@@ -321,7 +321,7 @@ class Interface(threading.Thread):
 
 class Robot(threading.Thread): 
 
-    def __init__(self, freq=30):
+    def __init__(self, freq=25):
         threading.Thread.__init__(self)
     
         rospy.init_node('Controller', anonymous=True)
@@ -416,11 +416,12 @@ class Robot(threading.Thread):
         # measured_force is in tool frame and must be transformed to base frame
 
         #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
-        #velocity = np.append(np.array(self.getToolLinearVelocity()) ,np.array([0,0,0]))
-        #measured_force = self.reference_frame('tool', self.getWrench())
+        velocity = np.append(np.array(self.getToolLinearVelocity()) ,np.array([0,0,0]))
+        measured_force = self.reference_frame('tool', self.getWrench())
         force_array = np.array([0,0,0])
+	
 
-        #measured = np.append(np.array(self.force_sensor), force_array)
+        measured = np.append(np.array(self.force_sensor), force_array)
 	#print measured
 	#measured_force = self.reference_frame('tool', self.getWrench())
         #print self.force_sensor
@@ -431,34 +432,40 @@ class Robot(threading.Thread):
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
         #control_law = k/c*error
-	#print measured_force
-	#if(error[0] < 0.1 and error[1] < 0.1 and error[2] < 0.1 )
-        #check_error = self.proximityCheck(desired_pose[0],0.7)
-	"""
-	if(error >):
-	     val = 1
-	else:
-	     val = 0.3
 	
-        print "===================================="
-	print desired_pose[0], actual_position
-        print abs(np.linalg.norm(desired_pose[0] - actual_position))
-	print val
-	"""
 	val = 0.3
-	print error
-	control_law = val*error 
-	#+ force_scaling*measured
+
+	
+	measured[2] = -measured[2]
+	tmp = measured[2]
+	measured[2] = measured[1]
+	measured[1] = tmp
+	print measured
+	if(abs(measured[2]) < 55000 and abs(error[0]) < 0.03 and abs(error[1]) < 0.03):
+		measured[1] = 0
+		measured[0] = 0
+		measured[2] = 0
+		print "===================================="
+	        print  "HOME"
+	        print "===================================="
+	measured[1] = measured[1]*0.6
+	measured[2] = measured[2]*2
+	#measured[0] = 0
+        control_law = val*error + force_scaling*measured
+	
         #control_law = force_scaling/c * measured_force
        	#print control_law
-        #print("error ", error) 	
+        print("veloc ", control_law) 	
 	#print "===================================="
-        #print  control_law, k/c*error
+        #print  force_scaling*measured
         #print "===================================="
         #testSelectionVector = np.array([0.5,1,0.5,1,1,1])
         #control_law = control_law *testSelectionVector
-        
-        
+	"""        
+	tmp = control_law[2]
+	control_law[2] = control_law[1]
+	control_law[1] = tmp
+        """
         return control_law
         
     # Uses only the position to control and does not involve forces. 
@@ -563,9 +570,9 @@ class Robot(threading.Thread):
 #######################################
 
     def findPosition(self):
-	roll = 1.5155    
-        pitch = -0.3226
-        yaw = 0.1297
+	roll = 1.524    
+        pitch = -0.049
+        yaw = -0.084
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -579,10 +586,18 @@ class Robot(threading.Thread):
 	#return newQut
 
     def goalPosition(self, position, quaternion):
-	position = np.array([-0.17239, -0.38559, 0.46098])
-        quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
+	#######################################
+	# FIRST EXERCISE
+	#######################################
+	#position = np.array([-0.17239, -0.38559, 0.46098+offset])
+        #quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
 	#quaternion = np.array([3.49848602e-06,  9.99961671e-01, -3.99984690e-04,  8.74621458e-03])
-        return position, quaternion
+	#######################################
+	# SECOND EXERCISE
+	#######################################
+	position = np.array([-0.20673, -0.61667, 0.14893])
+        quaternion = np.array([0.68880977, -0.04668559, -0.01346968,  0.72331191])
+	return position, quaternion
 #######################################
 ############ UR FUNCTIONS #############
 #######################################
@@ -786,13 +801,18 @@ class Robot(threading.Thread):
 
     # Returns actual wrench from F/T-sensor
     def getWrenchNoOffset(self):
-        return np.array([-1,0,0,0,0,0])   #np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))    
+        return np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))    
 
     # Returns wrench from the force sensor with respect taken to initial values
     def getWrench(self):
-        #wrench = np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))-self.force_offset 
-	#if len(wrench) == 0:
-	wrench = np.array([-1,0,0,0,0,0])     
+	#print(np.array(self.force_sensor))
+	#print(np.array(self.torque_sensor))
+	#print(self.force_offset)
+        wrench = np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))-self.force_offset 
+	"""	
+	if len(wrench) == 0:
+		wrench = np.array([-1,0,0,0,0,0])
+	"""     
 	return wrench
         #return np.random.rand(6)*100000*2
         #return np.zeros(6)
@@ -870,7 +890,7 @@ class Robot(threading.Thread):
             self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
             self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
             
-	    """
+
             #forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
             force_now = int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
             global red
@@ -884,7 +904,7 @@ class Robot(threading.Thread):
             #force_plot = np.roll(force_plot,1)
             #force_plot[0]= force_now
             #print(force_now)
-            """
+            
 
             res = resistance
             global str_res 
@@ -892,7 +912,7 @@ class Robot(threading.Thread):
 
             pose = start_pose
             global atHome
-            atHome = self.proximityCheck(start_pose, 0.03)
+            #atHome = self.proximityCheck(start_pose, 0.03)
             #print(run_robot)
             #print(atHome)
 
