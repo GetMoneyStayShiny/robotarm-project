@@ -321,7 +321,7 @@ class Interface(threading.Thread):
 
 class Robot(threading.Thread): 
 
-    def __init__(self, freq=25):
+    def __init__(self, freq= 25):
         threading.Thread.__init__(self)
     
         rospy.init_node('Controller', anonymous=True)
@@ -361,8 +361,11 @@ class Robot(threading.Thread):
         self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1)
         self.pub_y = rospy.Publisher('/positiony', Float32, queue_size=1)
         self.pub_z = rospy.Publisher('/positionz', Float32, queue_size=1)
+	self.pub_force_x = rospy.Publisher('/force_x', Float32, queue_size=1)
+	self.pub_force_y = rospy.Publisher('/force_y', Float32, queue_size=1)
+	self.pub_force_z = rospy.Publisher('/force_z', Float32, queue_size=1)
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
-        #rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
+        rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
 
         
         rospy.sleep(0.1) #time needed for initialization 
@@ -392,7 +395,7 @@ class Robot(threading.Thread):
 
 
 
-    def impedance_control(self, desired_pose, k, c =0.1 , force_scaling=0.0000003):
+    def impedance_control(self, desired_pose, k, c = 160, force_scaling=0.00005):
         c=float(c)
         k=float(k)
         self.mode = 'impedance controller'
@@ -410,9 +413,7 @@ class Robot(threading.Thread):
         error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         SelectionVector = np.array([1,2,2,2,2,2])
         error = error*SelectionVector
-	
-	
-	
+
         # measured_force is in tool frame and must be transformed to base frame
 
         #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
@@ -432,14 +433,15 @@ class Robot(threading.Thread):
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
         #control_law = k/c*error
-	
+	if len(measured) < 5:
+		measured = np.array([0,0,0,0,0,0])
 	val = 0.3
-
 	
-	measured[2] = -measured[2]
+	corr = 0.48
+	#measured[2] = -measured[2]
 	tmp = measured[2]
 	measured[2] = measured[1]
-	measured[1] = tmp
+	measured[1] = -tmp
 	print measured
 	if(abs(measured[2]) < 55000 and abs(error[0]) < 0.03 and abs(error[1]) < 0.03):
 		measured[1] = 0
@@ -448,24 +450,25 @@ class Robot(threading.Thread):
 		print "===================================="
 	        print  "HOME"
 	        print "===================================="
-	measured[1] = measured[1]*0.6
+		
+	measured[1] = measured[1]*0.5
 	measured[2] = measured[2]*2
-	#measured[0] = 0
-        control_law = val*error + force_scaling*measured
-	
+	measured[0] = measured[0]*0.1
+	control_law = val*error + (force_scaling/c)*measured
+	#data = Float32()
+	self.pub_force_x.publish(measured[0])
+	self.pub_force_y.publish(measured[1])
+	self.pub_force_z.publish(measured[2])
+        #control_law = (corr*k/c)*error + force_scaling/c*measured
+        #control_law = k/c*error + force_scaling/c*measured_force
         #control_law = force_scaling/c * measured_force
        	#print control_law
-        print("veloc ", control_law) 	
-	#print "===================================="
-        #print  force_scaling*measured
-        #print "===================================="
+        #print("error ", error)
+        #print("force ", measured_force)
         #testSelectionVector = np.array([0.5,1,0.5,1,1,1])
         #control_law = control_law *testSelectionVector
-	"""        
-	tmp = control_law[2]
-	control_law[2] = control_law[1]
-	control_law[1] = tmp
-        """
+        
+        
         return control_law
         
     # Uses only the position to control and does not involve forces. 
@@ -517,24 +520,14 @@ class Robot(threading.Thread):
         control_law = desire_velocity + kd_inv * ( position_term + (  measured_force ) ) #force  is measured wrt the base frame(not true anymore) 
         return self.reference_frame(frame,control_law)
  
-
     def force_sensor_reset(self):      
         self.pub_reset.publish(True)
-
-
-
 
 #######################################
 ############ JACOBIAN #################
 #######################################
 
-    def jac_function(self):   
-	q1 = self.q[0]
-	q2 = self.q[1]
-	q3 = self.q[2]
-	q4 = self.q[3]
-	q5 = self.q[4]
-	q6 = self.q[5]
+    def jac_function(self,q1,q2,q3,q4,q5,q6):   
 
 	#print q6
 
@@ -559,20 +552,22 @@ class Robot(threading.Thread):
    
         Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
 
-        #Jac_psudo = np.linalg.pinv(Jac)
-	lambdaa = 0.01
-        inverseTerm = np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6)))
-        Jac_psudo = np.matmul(np.transpose(Jac), inverseTerm)
+        Jac_psudo = np.linalg.pinv(Jac)
+	lambdaa = 0.0001
+        
+        #Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
         return Jac_psudo
+
+
 
 #######################################
 ############ NEW FUNCTION #############
 #######################################
 
     def findPosition(self):
-	roll = 1.524    
-        pitch = -0.049
-        yaw = -0.084
+	roll = 1.5441    
+        pitch = -0.3178
+        yaw = -0.1527
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -589,8 +584,8 @@ class Robot(threading.Thread):
 	#######################################
 	# FIRST EXERCISE
 	#######################################
-	#position = np.array([-0.17239, -0.38559, 0.46098+offset])
-        #quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
+	#position = np.array([-0.17239, -0.38559, 0.46098])
+        #quaternion = np.array([0.67816289, -0.16558033,  0.05610026,  0.71381441])
 	#quaternion = np.array([3.49848602e-06,  9.99961671e-01, -3.99984690e-04,  8.74621458e-03])
 	#######################################
 	# SECOND EXERCISE
@@ -598,6 +593,8 @@ class Robot(threading.Thread):
 	position = np.array([-0.20673, -0.61667, 0.14893])
         quaternion = np.array([0.68880977, -0.04668559, -0.01346968,  0.72331191])
 	return position, quaternion
+
+
 #######################################
 ############ UR FUNCTIONS #############
 #######################################
@@ -649,7 +646,7 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 0.5, time = 0.05):
+    def q_dot(self, dq_value, acceleration = 5, time = 0.05):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
@@ -733,7 +730,7 @@ class Robot(threading.Thread):
         homePos = homePose[0]
         currentPosistion = self.getTaskPosi()
         error = abs(np.linalg.norm(homePos-currentPosistion))
-        print('Distance to home: ' + str(error))
+        #print('Distance to home: ' + str(error))
         if(error > distance):
             return False
         else: 
@@ -805,14 +802,9 @@ class Robot(threading.Thread):
 
     # Returns wrench from the force sensor with respect taken to initial values
     def getWrench(self):
-	#print(np.array(self.force_sensor))
-	#print(np.array(self.torque_sensor))
-	#print(self.force_offset)
         wrench = np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))-self.force_offset 
-	"""	
 	if len(wrench) == 0:
-		wrench = np.array([-1,0,0,0,0,0])
-	"""     
+		wrench = np.array([-1,0,0,0,0,0])     
 	return wrench
         #return np.random.rand(6)*100000*2
         #return np.zeros(6)
@@ -891,7 +883,7 @@ class Robot(threading.Thread):
             self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
             
 
-            #forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
+            forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
             force_now = int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
             global red
             red = force_now*(239-30)/250 + 30 
@@ -912,16 +904,22 @@ class Robot(threading.Thread):
 
             pose = start_pose
             global atHome
-            #atHome = self.proximityCheck(start_pose, 0.03)
+            atHome = self.proximityCheck(start_pose, 0.03)
             #print(run_robot)
             #print(atHome)
-
+	    
 
 	    #######################################
             ############ MAIN  ####################
             ####################################### 
+	    q1 = self.q[0]
+	    q2 = self.q[1]
+	    q3 = self.q[2]
+	    q4 = self.q[3]
+	    q5 = self.q[4]
+	    q6 = self.q[5]
 	    controller = self.impedance_control(pose,res)
-            Jac_psudo = self.jac_function()
+            Jac_psudo = self.jac_function(q1,q2,q3,q4,q5,q6)
 	    V_ref = np.transpose(controller)
 	    #self.findPosition()
 	    dq = np.matmul(Jac_psudo, V_ref)
@@ -947,7 +945,6 @@ class Robot(threading.Thread):
             #######################################    
             # ---Limits for rowing exercise--- 
             # Limits movement in z-direction, "floor" at z=0.192 and "roof" at z=0.725
-	    """
             if (self.getTaskPosi()[2] <= 0.192 and controller[2]<0):
                 controller[2] = 0 
             if (self.getTaskPosi()[2] >= 0.725 and controller[2]>0):
@@ -979,7 +976,7 @@ class Robot(threading.Thread):
             if(self.getTaskEuler()[2] <= -0.289 and controller[5]<0):
                 controller[5] = 0           
 	    
-	    """
+
 
 
 	    
