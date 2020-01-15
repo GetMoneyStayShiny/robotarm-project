@@ -320,7 +320,7 @@ class Interface(threading.Thread):
 
 class Robot(threading.Thread): 
 
-    def __init__(self, freq= 125):
+    def __init__(self, freq= 25):
         threading.Thread.__init__(self)
     
         rospy.init_node('Controller', anonymous=True)
@@ -391,7 +391,7 @@ class Robot(threading.Thread):
 
 
 
-    def impedance_control(self, desired_pose, k, c = 160, force_scaling=0.00005):
+    def impedance_control(self, desired_pose, k, c = 100, force_scaling=0.00005):
         c=float(c)
         k=float(k)
         self.mode = 'impedance controller'
@@ -435,21 +435,46 @@ class Robot(threading.Thread):
 	
 	corr = 0.48
 	#measured[2] = -measured[2]
+	print measured
 	tmp = measured[2]
 	measured[2] = measured[1]
 	measured[1] = -tmp
-	print measured
 	if(abs(measured[2]) < 55000 and abs(error[0]) < 0.03 and abs(error[1]) < 0.03):
 		measured[1] = 0
 		measured[0] = 0
 		measured[2] = 0
 		print "===================================="
-	        print  "HOME"
-	        print "===================================="
-		
+		print  "HOME"
+		print "===================================="
+        
+	
+	"""
+	#EX1
+
+	
+	
 	measured[1] = measured[1]*0.5
 	measured[2] = measured[2]*2
 	measured[0] = measured[0]*0.1
+	"""
+	
+	
+	#EX 2
+
+	
+	
+	measured[1] = measured[1]*0.2
+	measured[0] = measured[0]*0.1
+	measured[2] = measured[2]*0.8
+	
+	
+	#EX3
+	"""
+	measured[1] = measured[1]*0.5
+	measured[2] = measured[2]*2
+	measured[0] = measured[0]*0.1
+	"""
+
 	control_law = val*error + (force_scaling/c)*measured
 	#data = Float32()
 	#self.pub_force_x.publish(measured[0])
@@ -548,11 +573,14 @@ class Robot(threading.Thread):
         d6 =  0.0922
    
         Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
+	
 
-        #Jac_psudo = np.linalg.pinv(Jac)
-	lambdaa = 0.0001
-        
-        Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
+
+	Jac_psudo = np.linalg.pinv(Jac)
+	lambdaa = 0
+        #print Jac_psudo
+        #Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
+	#print Jac_psudo
         return Jac_psudo
 
 
@@ -564,9 +592,9 @@ class Robot(threading.Thread):
 #######################################
 
     def findPosition(self):
-	roll = 1.5441    
-        pitch = -0.3178
-        yaw = -0.1527
+	roll = 1.483    
+        pitch = 0.006
+        yaw = 0.181
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -583,14 +611,18 @@ class Robot(threading.Thread):
 	#######################################
 	# FIRST EXERCISE
 	#######################################
-	position = np.array([-0.17239, -0.38559, 0.46098])
-        quaternion = np.array([0.67816289, -0.16558033,  0.05610026,  0.71381441])
-	#quaternion = np.array([3.49848602e-06,  9.99961671e-01, -3.99984690e-04,  8.74621458e-03])
+	#position = np.array([-0.15792, -0.35975, 0.4525])
+        #quaternion = np.array([ 0.6757655,  -0.00147379,  0.00949065,  0.7370541])
 	#######################################
 	# SECOND EXERCISE
 	#######################################
-	#position = np.array([-0.20673, -0.61667, 0.14893])
-        #quaternion = np.array([0.68880977, -0.04668559, -0.01346968,  0.72331191])
+	position = np.array([-0.15651, -0.69471, 0.0553])
+        quaternion = np.array([ 0.67570833, -0.01028819,  0.01689194,  0.7369037])
+	#######################################
+	# Third EXERCISE
+	#######################################
+	#position = np.array([-0.07609, -0.47965, -0.01873])
+        #quaternion = np.array([0.67242794, 0.06324287, 0.06463054, 0.7346182])
 	return position, quaternion
 
 
@@ -671,8 +703,8 @@ class Robot(threading.Thread):
             linear_velocity = np.matmul(rot_mat[0:3,0:3], control_law[0:3]) 
             angular_velocity = np.matmul(rot_mat[0:3,0:3], control_law[3:6])  
             control_law = np.concatenate((linear_velocity, angular_velocity))
-	    print(linear_velocity)
-	    print(angular_velocity) 
+	    #print(linear_velocity)
+	    #print(angular_velocity) 
         else: 
             raise NameError('Specify base or tool as a frame!')
         return control_law
@@ -895,7 +927,7 @@ class Robot(threading.Thread):
 
             res = resistance
             global str_res 
-            str_res.set("Current resistance: "+str(res))
+            str_res.set("Current resistance: "+ str(res))
 
             pose = start_pose
             global atHome
@@ -928,52 +960,6 @@ class Robot(threading.Thread):
 
 
 
-
-
-
-
-
-
-
-            #######################################
-            ############ Safety Limits ############
-            #######################################    
-            # ---Limits for rowing exercise--- 
-            # Limits movement in z-direction, "floor" at z=0.192 and "roof" at z=0.725
-            if (self.getTaskPosi()[2] <= 0.192 and controller[2]<0):
-                controller[2] = 0 
-            if (self.getTaskPosi()[2] >= 0.725 and controller[2]>0):
-                controller[2] = 0 
-
-            # Limits the movement in x-direction by 20 cenitmeters in each direction
-            # from start position
-            if (self.getTaskPosi()[0] <= (position[0]-0.2) and controller[0]<0):
-                controller[0]=0
-            if(self.getTaskPosi()[0] >= (position[0]    )+0.2 and controller[0]>0):
-                controller[0] = 0 
-
-            #Limits the movement in y-direction by 5 centimeters behind the start position 
-            if(self.getTaskPosi()[1] <= (position[1]-0.05) and controller[1]<0):
-                controller[1] = 0       
-
-            # Limits the rotation around the x-axis
-            #+- 0.3 rad
-            if(self.getTaskEuler()[0] <= -1.872 and not controller[3]>0):
-                controller[3] = 0
-
-            if(self.getTaskEuler()[0] >= -1.272 and controller[3]>0):
-                controller[3] = 0
-
-            # Limits the rotation around z-axis
-            # +- 0.3 rad 
-            if(self.getTaskEuler()[2] >= 0.311 and controller[5]>0):
-                controller[5] = 0
-            if(self.getTaskEuler()[2] <= -0.289 and controller[5]<0):
-                controller[5] = 0           
-	    
-
-
-
 	    
             
             self.rate.sleep()
@@ -985,8 +971,8 @@ if __name__ == '__main__':
         robot_thread.daemon = True
         robot_thread.start()
 
-        #gui_thread = Interface(root)
-        #gui_thread.setName("GUI Thread")
+        gui_thread = Interface(root)
+        gui_thread.setName("GUI Thread")
        
         root.mainloop()
          
