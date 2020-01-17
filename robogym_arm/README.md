@@ -31,3 +31,11 @@ If you wish to run in the simulation mode then follw the below given steps.
 - Install the ROS ackage _ur_robot_driver_ . Installation details can be found in \ref <https://github.com/UniversalRobots/Universal_Robots_ROS_Driver>
 - _roslaunch ur_calibration calibration_correction.launch robot_ip:=localhost target_filename:="<FILE PATH>/ur10_calibration.yaml"_. This will create a calibration file in the specified directory (basically this is the tf tree). 
 - _roslaunch robogym_arm robogym.launch is_sim:=true kinematics_config:=<CALIBRATION_FILE_PATH>_. Also kinematics_config is optional one could edit this value directly in the launch file.
+
+**REFERENCE**
+1. Robotics Operating System (ROS) \ref <https://www.ros.org/>
+2. ROS-Industrial \ref <https://rosindustrial.org/>
+3. URScript API : URScript manual for the UR10 robot control
+4. ur_modern_driver \ref <https://github.com/ros-industrial/ur_modern_driver>
+5. ur_robot_driver \ref <https://github.com/UniversalRobots/Universal_Robots_ROS_Driver>
+6. EtherDAQ ROS driver \ref <https://github.com/OptoForce/etherdaq_ros>
