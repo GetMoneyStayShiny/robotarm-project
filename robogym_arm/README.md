@@ -1,50 +1,33 @@
-In the run function;
-  We have Start-pose for [home/rowing.....]
-  in the form of position(x,y,z) and quaternion(x,y,z,w)
-  init start pose
-  
-  while not rospy.shutdown()
-     we get the x from;
-	getTaskPosi --> transMat("The 2 frames") 
-			In this case we are using the 1st branch from
-			tf graph, which gives us the tf from base 
-			to tool0_control. 
+**RoboGym Arm**
 
-			This function basically listen to tf service (ROS service) 
-                        tf --> This is a ros library (http://wiki.ros.org/tf) basically ehat this does 
-                        is gives us the connection between each link. Remeber how we construct the 
-		        trasformation matrix for forward kinematics. 
-			
-			So this service will give us the Rotational matrix (R) and the Traslational matrix (T)
-                        for given 2 frames. (In the old code we only care about the base frame and the 
-			end tool frame, since they only control the spped of the tool -- speedl command)
-                        but (I guess) for us we have to get these trasformation mats for each frame from base to tool 
+This ROS package will provide an interface and a controller for a collaborative robot. UR10 is a robot that was used in this project. The key point that should be noted is that the system is controlled by joint velocity control. The file structure of the package is given below. 
 
-			We can of course the the euler and then the quaternions (we have to command using quaternion)
-			So the function transMat will return 4 values (vectors/matrix) and for this getTaskPosi we
-			extract the position. Then we can calculate position diffrence (I assume this will be 3x1
-			vector not sure need to see)                        
-			
-			Then we publish this value --> According to thwm its for the purpose of ploting the data
+- launch : This directory includes all the launch files that will be used in this project
+  * interface - To launch the iterface class
+  * robot - To launch the robot class  
+  * robogym - To launch the system. This will launch both the classes and the requred files to run system (like the ur_mordern_drive package)
+- msg : The directory which includes the custom made messages for this project
+  * Interface - Message which is published by the interface. This message includes interface values/status
+  * InterfaceStamped - Time-stamped message of the Interface message.
+  * Robot -  Message which is published by the robot class(RoboGym node). This message includes robot values/status.
+  * RobotStamped -  Time-stamped message of the Robot message.
+- nodes : Two python classes 
+  * interface - Interface class. This defines the GUI
+  * robot - This is the RoboGym node. This node is also know as the main controller of this project (Robot class) 
+- resources : Image files for the GUI
+- CMakeLists.Txt : CMake project configuration file
+- package.xml : package.xml 
+- README.md : readme file (this file)
 
-  
-    Then we have,
-	forceVar --> StringVar() (A class defined in the Tkinter lib -- not related to our case but basically we access data from the GUI)
-	force_now --> This is value that is shown by the above variable. 	
-        getWrench() --> currently returning a vector of zeros (1x6)  but, they do have a variable called wrench which is given by the 
-                        expression below,  
-                        wrench = [(force_sensor, torque_sensor)] - self.force_offset
+**HOW TO RUN THIS PACKAGE**
 
-        force_sensor --> We have a callback named, wrenchSensorCallback() --> 
-                         msg type --> geometry_msgs/WrenchStamped (http://docs.ros.org/melodic/api/geometry_msgs/html/msg/WrenchStamped.html)
-                         I assume this is the data coming from the foce sensor
+This package supports both real-time robot minupulation and simulation robot control. If you wish to run the program in the real robot, you need the robot ip, which can be found in the robot intialize page in UR10. Once the value is found run,
+- _roslaunch robogym_arm robogym.launch robot_ip:=<ROBOT_IP>_ (Please note that there is already a default value set for the robot ip, if you don't wish to specify every iteration, it is recommended to edit this value in the launch file itself)
 
-
-        torque_sensor --> The same sensor msg also include the value of this as well... 
-       
-        force_offset --> I think this could be the initial force value. Because in the initial stage they set that to the 
-                         force_sensor & torque_sensor values and then I dont see its being updated anywhere...  
-	
-        force_now = int(np.linalg.norm(self.getWrench() * np.array([1, 1, 1, 0, 0, 0])) / 10000) --> This will return a single value but I dont
-		    understand what is this.... 
-
+If you wish to run in the simulation mode then follw the below given steps.
+- Open up the UR_SIM. First go the correct directory where you installed your ur-sim software from UR.
+    * cd ~/ursim-3.11.0.82155/ 
+    * ./start-ursim.sh
+- Install the ROS ackage _ur_robot_driver_ . Installation details can be found in \ref <https://github.com/UniversalRobots/Universal_Robots_ROS_Driver>
+- _roslaunch ur_calibration calibration_correction.launch robot_ip:=localhost target_filename:="<FILE PATH>/ur10_calibration.yaml"_. This will create a calibration file in the specified directory (basically this is the tf tree). 
+- _roslaunch robogym_arm robogym.launch is_sim:=true kinematics_config:=<CALIBRATION_FILE_PATH>_. Also kinematics_config is optional one could edit this value directly in the launch file.

@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 import rospy
+import rospkg
 import numpy as np
 from threading import Thread, Lock
 from Tkinter import *
@@ -60,6 +61,13 @@ class Interface():
         self.mutex = Lock()
 
         rospy.init_node('RoboGymInterface')
+
+        rospack = rospkg.RosPack()
+        self.initialPoint = True
+        self.img_path_1 = rospack.get_path('robogym_arm') + '/resources/ex1_s.jpg'
+        self.img_path_2 = rospack.get_path('robogym_arm') + '/resources/ex2_s.jpg'
+        self.img_path_3 = rospack.get_path('robogym_arm') + '/resources/ex3_s.jpg'
+
         rospy.Subscriber('/robogym/robot_interface_status',RobotStamped,self.robot_status_callback)
         self.interface_cmd = rospy.Publisher('/robogym/interface_cmd',InterfaceStamped,queue_size=1)
 
@@ -175,7 +183,7 @@ class Interface():
                 exercise_select.grid(row=32, column=65, padx=2, sticky=W)
 
         # Exercise image
-        orgrinal_ex1 = Image.open("ex1_s.jpg")
+        orgrinal_ex1 = Image.open(self.img_path_1)
         resized_ex1 = orgrinal_ex1.resize((320, 280), Image.ANTIALIAS)
         self.photo_ex1 = ImageTk.PhotoImage(resized_ex1)
         ex1_image = Text(frame, height=20, width=40)
@@ -184,7 +192,7 @@ class Interface():
         ex1_image.config(state=DISABLED)
         ex1_image.grid(row=13, rowspan=20, column=65, columnspan=10, sticky=N)
 
-        orgrinal_ex2 = Image.open("ex2_s.jpg")
+        orgrinal_ex2 = Image.open(self.img_path_2)
         resized_ex2 = orgrinal_ex2.resize((320, 280), Image.ANTIALIAS)
         self.photo_ex2 = ImageTk.PhotoImage(resized_ex2)
         ex2_image = Text(frame, height=20, width=40)
@@ -193,7 +201,7 @@ class Interface():
         ex2_image.config(state=DISABLED)
         ex2_image.grid(row=13, rowspan=20, column=75, columnspan=10, sticky=N)
 
-        orgrinal_ex3 = Image.open("ex3_s.jpg")
+        orgrinal_ex3 = Image.open(self.img_path_3)
         resized_ex3 = orgrinal_ex3.resize((320, 280), Image.ANTIALIAS)
         self.photo_ex3 = ImageTk.PhotoImage(resized_ex3)
         ex3_image = Text(frame, height=20, width=40)
