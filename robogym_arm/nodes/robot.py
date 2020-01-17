@@ -1,28 +1,15 @@
 #!/usr/bin/env python
-import roslib
 import rospy
 import numpy as np
-import time
 import tf
-import select
 import math
-import sys, termios, tty, os, time
-# import Tkinter as tk
-import threading
-# import matplotlib.pyplot as plt
-# import matplotlib.figure
-# import matplotlib.animation as animation
 from numpy import matrix
 from math import cos, sin
-from numpy.linalg import inv
 from std_msgs.msg import String, Bool, Float32
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistStamped, WrenchStamped,Pose
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from geometry_msgs.msg import Wrench
 from robogym_arm.msg import InterfaceStamped,RobotStamped
 import enum
-
 
 class Robot:
     def __init__(self):
@@ -43,7 +30,7 @@ class Robot:
         self.atHome = False
 
         # Set ros-launch params
-        isSimulation = rospy.get_param('~is_simulation', default=True)
+        isSimulation = rospy.get_param('~is_simulation', default=False)
         self.rate = rospy.Rate(rospy.get_param('~rate', default=125))
         self.lamda = rospy.get_param('~lambda', default=0.1)
         self.isPsudoInverse = rospy.get_param('~is_psudo_inverse', default=False)
@@ -83,7 +70,7 @@ class Robot:
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
-        rospy.Subscriber("/robogym/interface",InterfaceStamped,self.interfaceCallback)
+        rospy.Subscriber("/robogym/interface_cmd",InterfaceStamped,self.interfaceCallback)
         # Sensor publishers and subscribers
         # self.pub_reset = rospy.Publisher('/optoforce_node/reset', Bool, queue_size=1)
         self.hasExerciseChanged = False
@@ -91,15 +78,22 @@ class Robot:
         rospy.loginfo("STARTING ROBOT NODE")
         while not rospy.is_shutdown():
             if init or self.hasExerciseChanged:
-                position, quaternion = self.getGoalPosition()
-                self.start_pose = np.array([position, quaternion])
+
 
                 if self.hasExerciseChanged:
                     rospy.logwarn("Changing the exercise")
+                    rospy.sleep(1)
+                    rospy.logwarn("Moving to new position")
+                else:
+                    rospy.sleep(1)
+
+                position, quaternion = self.getGoalPosition()
+                self.start_pose = np.array([position, quaternion])
+
+                print self.start_pose
 
                 init = False
                 self.hasExerciseChanged = False
-                self.impedance_control(self.start_pose,50)
 
             self.getCurrentTrasformationData()
             self.pubPosition()
@@ -110,12 +104,16 @@ class Robot:
             q4 = self.q[3]
             q5 = self.q[4]
             q6 = self.q[5]
-            controller = self.impedance_control(self.start_pose, res)
+            controller = self.impedance_control(self.start_pose, 50)
+
+            print self.start_pose
+            print controller
             Jac_psudo = self.jac_function(q1, q2, q3, q4, q5, q6)
             V_ref = np.transpose(controller)
-            # self.findPosition()
+
             dq = np.matmul(Jac_psudo, V_ref)
             dq_value = np.asarray(dq).reshape(-1)
+
             self.q_dot(dq_value)
 
             # self.getRobotState()
@@ -136,12 +134,13 @@ class Robot:
         self.torque = [data.wrench.torque.x, data.wrench.torque.y, data.wrench.torque.z]
 
     def interfaceCallback(self,data):
-        if(data.exercise_type != 0):
-            if(data.exercise_type == 1):
+        if(data.interface.exercise_type != 0):
+            self.hasExerciseChanged = True
+            if(data.interface.exercise_type == 1):
                 self.exerciseType = ExerciseType.Horizontal
-            elif(data.exercise_type == 2):
+            elif(data.interface.exercise_type == 2):
                 self.exerciseType = ExerciseType.Vertical
-            elif(data.exercise_type == 3):
+            elif(data.interface.exercise_type == 3):
                 self.exerciseType = ExerciseType.BicepCurl
 
     def wrenchSensorCallback(self, data):
@@ -232,7 +231,7 @@ class Robot:
 
     # endregion
 
-    # region Get fnctions
+    # region Get functions
     def getGoalPosition(self):
         position = np.array([0, 0, 0])
         quaternion = np.array([0, 0, 0, 0])
@@ -322,13 +321,12 @@ class Robot:
     # endregion
 
     def impedance_control(self, desired_pose, k, force_scaling=0.00005):
-        # c = float(c)
-        # k = float(k)
-        c = 0
+        c = 160
         self.mode = 'impedance controller'
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
         error_position = desired_position_base - self.position
+        print self.position
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive,
         # could be seen as "adding" two rotations
         # multiplying the desired quaternion with the inverse of the current quaternion gives the error,
@@ -338,27 +336,29 @@ class Robot:
         error = np.append(error_position, error_angle[0:3])
         SelectionVector = np.array([1, 2, 2, 2, 2, 2])
         error = error * SelectionVector
-
+        # print "error"
+        # print error
+        # print "end error    "
         # measured_force is in tool frame and must be transformed to base frame
         # velocity = np.append(np.array(self.tool_velocity_linear), np.array([0, 0, 0]))
         # measured_force = self.reference_frame('tool', self.getWrench())
-        empty_array = np.array([0,0,0])
+        empty_array = np.array([0, 0, 0])
         force_array = np.array(self.force_sensor)
-
+        # force_array = np.array([0, 0, 0])
         kp = 2
         kd = 1
         # In the current steup, all the tool positions for the three exercises are
         # oriented in the pose, hence the traformation matrix in all cases are same
-        if(self.exerciseType == ExerciseType.Horizontal):
-            force_array = self.rotateToolFrame(axis='x',angle=90,measuredVec=force_array )
-        elif(self.exerciseType == ExerciseType.Vertical):
-            force_array = self.rotateToolFrame(axis='x', angle=90, measuredVec=force_array )
-        elif(self.exerciseType == ExerciseType.BicepCurl):
-            force_array = self.rotateToolFrame(axis='x', angle=90, measuredVec=force_array )
+        if (self.exerciseType == ExerciseType.Horizontal):
+            force_array = self.rotateToolFrame(axis='x', angle=90, measuredVec=force_array)
+        elif (self.exerciseType == ExerciseType.Vertical):
+            force_array = self.rotateToolFrame(axis='x', angle=90, measuredVec=force_array)
+        elif (self.exerciseType == ExerciseType.BicepCurl):
+            force_array = self.rotateToolFrame(axis='x', angle=90, measuredVec=force_array)
 
-        measured = np.append(force_array, empty_array)
-        # if len(measured) < 5:
-        #     measured = np.array([0, 0, 0, 0, 0, 0])
+        tmp = np.asarray(force_array).reshape(-1)
+        measured = np.append(tmp, empty_array)
+
         val = 0.3
         corr = 0.48
 
@@ -367,36 +367,29 @@ class Robot:
             measured[0] = 0
             measured[2] = 0
             self.isHome = True
+            rospy.logwarn("HOME POSITION")
 
-        if(self.exerciseType == ExerciseType.Horizontal):
+        if (self.exerciseType == ExerciseType.Horizontal):
             measured[1] = measured[1] * 0.5
             measured[2] = measured[2] * 2
             measured[0] = measured[0] * 0.1
-            c=100
-        elif(self.exerciseType == ExerciseType.Vertical):
-            measured[1] = measured[1] * 0.2
+            c=160
+            control_law = (k *error)/ c + (force_scaling *measured)/ c
+            return control_law
+        elif (self.exerciseType == ExerciseType.Vertical):
+            measured[1] = measured[1] * 0.5
             measured[0] = measured[0] * 0.1
-            measured[2] = measured[2] * 0.8
+            measured[2] = measured[2] * 2
             c = 160
-        elif(self.exerciseType == ExerciseType.BicepCurl):
+            control_law = (k *error)/ c + (force_scaling *measured)/ c
+            return control_law
+        elif (self.exerciseType == ExerciseType.BicepCurl):
             measured[1] = measured[1] * 0.5
             measured[2] = measured[2] * 2
             measured[0] = measured[0] * 0.1
-            c = 80
-
-        control_law = val * error + (force_scaling / c) * measured
-        # measured[1] = measured[1] * 0.5
-        # measured[2] = measured[2] * 2
-        # measured[0] = measured[0] * 0.1
-        # control_law = val * error + (force_scaling / c) * measured
-        # # data = Float32()
-        #
-        # # control_law = (corr*k/c)*error + force_scaling/c*measured
-        # # control_law = k/c*error + force_scaling/c*measured_force
-        # # control_law = force_scaling/c * measured_force
-        # self.pubForce(measured[0],measured[1],measured[2])
-
-        return control_law
+            c = 160
+            control_law = val * error + (force_scaling / c) * measured
+            return control_law
 
     def jac_function(self, q1, q2, q3, q4, q5, q6):
         d1 = 0.1273

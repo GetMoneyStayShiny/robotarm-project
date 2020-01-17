@@ -65,6 +65,10 @@ Pull the handle with one hand in a controlled rowing motion back and forth
 and do not release the handle until you are finished with the exercise. 
 This exercise will mainly stimulate the back, biceps and core musculature. 
 """
+exercise_string_forex2 = """
+Exercise string for exercise 2 
+"""
+
 # threading.Thread
 class Interface():
     def __init__(self):
@@ -166,34 +170,10 @@ class Interface():
         text_button.config(state=DISABLED)
         text_button.grid(row=10, rowspan=22, column=50, columnspan=10, padx=6, pady=6, sticky=N)
 
-        # Test widget explaning exercise
-        text_exercise = Text(frame, height=10, width=80)
-        text_exercise.tag_configure('bold_italics', font=('Arial', 12, 'bold', 'italic'))
-        text_exercise.tag_configure('big', font=('Verdana', 12, 'bold'))
-        text_exercise.tag_configure('color', foreground='#476042', font=('Tempus Sans ITC', 12, 'bold'))
-
-        text_exercise.tag_bind('follow', '<1>', lambda e, t=text_exercise: t.insert(END, "Not now, maybe later!"))
-
-        text_exercise.insert(END, exercise_string)
-        text_exercise.config(state=DISABLED)
-        text_exercise.grid(row=10, rowspan=10, column=66, columnspan=14, padx=6, pady=6, sticky=N)
-
-        # # # Exercise image
-        text_image = Text(frame, height=25, width=80)
-        # # "gym_instructions.png"
-        org_img = Image.open("temp.png")
-        res_img = org_img.resize((555, 320), Image.ANTIALIAS)
-        #
-        self.photo = ImageTk.PhotoImage(res_img)
-        #
-        text_image.insert(END, '\n')
-        text_image.image_create(END, image=self.photo)
-        text_image.config(state=DISABLED)
-        text_image.grid(row=18, rowspan=25, column=66, columnspan=18, sticky=N)
-
         exersice_details = Label(frame, text="Choose your exercise:")
         # exersice_details.config(height=5, width=25)
-        exersice_details.grid(row=35, column=66, pady=2, sticky=W)
+        exersice_details.configure(font=('Verdana', 12, 'bold'))
+        exersice_details.grid(row=10, column=66, pady=2, sticky=W)
 
         for index,language in enumerate(languages):
             exercise_select =  Radiobutton(frame,
@@ -201,7 +181,52 @@ class Interface():
                                variable=self.exercise_val,
                                command=self.ShowChoice,
                                value=index+1)
-            exercise_select.grid(row=36+index, column=66, padx=2,sticky=W)
+            if index == 0:
+                exercise_select.grid(row=12, column=65, padx=2,sticky=W)
+            elif index == 1:
+                exercise_select.grid(row=12, column=75, padx=2, sticky=W)
+            elif index == 2:
+                exercise_select.grid(row=32, column=65, padx=2, sticky=W)
+
+        # Exercise image
+        orgrinal_ex1 = Image.open("ex1_s.jpg")
+        resized_ex1 = orgrinal_ex1.resize((320, 280), Image.ANTIALIAS)
+        self.photo_ex1 = ImageTk.PhotoImage(resized_ex1)
+        ex1_image = Text(frame, height=20, width=40)
+        ex1_image.insert(END, '\n')
+        ex1_image.image_create(END, image=self.photo_ex1)
+        ex1_image.config(state=DISABLED)
+        ex1_image.grid(row=13, rowspan=20, column=65, columnspan=10, sticky=N)
+
+        orgrinal_ex2 = Image.open("ex2_s.jpg")
+        resized_ex2 = orgrinal_ex2.resize((320, 280), Image.ANTIALIAS)
+        self.photo_ex2 = ImageTk.PhotoImage(resized_ex2)
+        ex2_image = Text(frame, height=20, width=40)
+        ex2_image.insert(END, '\n')
+        ex2_image.image_create(END, image=self.photo_ex2)
+        ex2_image.config(state=DISABLED)
+        ex2_image.grid(row=13, rowspan=20, column=75, columnspan=10, sticky=N)
+
+        orgrinal_ex3 = Image.open("ex3_s.jpg")
+        resized_ex3 = orgrinal_ex3.resize((320, 280), Image.ANTIALIAS)
+        self.photo_ex3 = ImageTk.PhotoImage(resized_ex3)
+        ex3_image = Text(frame, height=20, width=40)
+        ex3_image.insert(END, '\n')
+        ex3_image.image_create(END, image=self.photo_ex3)
+        ex3_image.config(state=DISABLED)
+        ex3_image.grid(row=33, rowspan=20, column=65, columnspan=10, sticky=N)
+
+        # Test widget explaning exercise
+        self.text_exercise = Text(frame, height=10, width=40)
+        self.text_exercise.tag_configure('bold_italics', font=('Arial', 12, 'bold', 'italic'))
+        self.text_exercise.tag_configure('big', font=('Verdana', 12, 'bold'))
+        self.text_exercise.tag_configure('color', foreground='#476042', font=('Tempus Sans ITC', 12, 'bold'))
+
+        self.text_exercise.tag_bind('follow', '<1>', lambda e, t=self.text_exercise: t.insert(END, "Not now, maybe later!"))
+
+        self.text_exercise.insert(END, exercise_string)
+        self.text_exercise.config(state=DISABLED)
+        self.text_exercise.grid(row=33, rowspan=25, column=75, columnspan=10, padx=6, pady=6, sticky=N)
 
         # Force display label
         self.force = Label(frame, textvariable=self.forceVar, font=("Helvetica", 100),
@@ -249,10 +274,25 @@ class Interface():
         self.root.mainloop()
 
     def ShowChoice(self):
+        print "change choice"
         interface_msg = InterfaceStamped()
         interface_msg.interface.exercise_type = self.exercise_val.get()
         self.interface_cmd.publish(interface_msg)
-        print(self.exercise_val.get())
+
+        # val = self.exercise_val.get()
+        # print val
+        # if val == 1:
+        #     self.text_exercise.insert(END, exercise_string)
+        # elif val == 2:
+        #     self.text_exercise.insert(END, exercise_string_forex2)
+        # elif val == 3:
+        #     self.text_exercise.insert(END, exercise_string)
+        #
+        # self.text_exercise.update()
+        # self.text_exercise.pack()
+
+
+
 
     def robot_status_callback(self,data):
         self.mutex.acquire()
