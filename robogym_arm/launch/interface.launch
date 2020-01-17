@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+	<node type="interface.py" pkg="robogym_arm" name="RoboGymInterface" output="screen"/>
+</launch>

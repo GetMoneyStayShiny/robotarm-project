@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="is_sim"               default="true"/>
+    <arg name="robot_ip"             default="192.168.1.115"/>
+    <arg name="kinematics_config"    default="ur10_calibration.yaml"/>
+
+    <group if="$(arg is_sim)">
+        <!--ur-mordern-driver-->
+        <include file="$(find ur_robot_driver)/launch/ur10_bringup.launch" >
+            <arg name="robot_ip" value="localhost"/>
+            <arg name="kinematics_config" value="$(arg kinematics_config)"/>
+        </include>
+
+        <!--robot class - the controller-->
+        <node pkg="robogym_arm" type="robot.py" name="RoboGYM" output="screen">
+            <param name="is_simulation" value="true" />
+            <param name="rate" value="125" />
+            <param name="lambda" value="0.1" />
+            <param name="is_psudo_inverse" value="false" />
+        </node>
+    </group>
+
+    <group unless="$(arg is_sim)">
+        <!--ur-mordern-driver-->
+        <include file="$(find ur_modern_driver)/launch/ur10_bringup.launch" >
+            <arg name="robot_ip" value="$(arg robot_ip)"/>
+        </include>
+
+        <!-- opttoforce ros-package-->
+        <include file="$(find optoforce_etherdaq_driver)/launch/demo.launch"/>
+
+        <!--interface-->
+        <include file="$(find optoforce_etherdaq_driver)/launch/demo.launch"/>
+
+        <!--robot class - the controller-->
+        <node pkg="robogym_arm" type="robot.py" name="RoboGYM" output="screen">
+            <param name="is_simulation" value="false" />
+            <param name="rate" value="125" />
+            <param name="lambda" value="0.1" />
+            <param name="is_psudo_inverse" value="false" />
+        </node>
+    </group>
+</launch>

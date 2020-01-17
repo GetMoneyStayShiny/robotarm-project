@@ -59,7 +59,7 @@ class Interface():
         self.root = Tk()
         self.mutex = Lock()
 
-        rospy.init_node('Interface')
+        rospy.init_node('RoboGymInterface')
         rospy.Subscriber('/robogym/robot_interface_status',RobotStamped,self.robot_status_callback)
         self.interface_cmd = rospy.Publisher('/robogym/interface_cmd',InterfaceStamped,queue_size=1)
 

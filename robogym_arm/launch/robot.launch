@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+   <node pkg="robogym_arm" type="robot.py" name="RoboGYM" output="screen">
+        <param name="is_simulation" value="false" />
+        <param name="rate" value="125" />
+        <param name="lambda" value="0.1" />
+        <param name="is_psudo_inverse" value="false" />
+   </node>
+</launch>

@@ -32,9 +32,12 @@ class Robot:
 
         # Set ros-launch params
         isSimulation = rospy.get_param('~is_simulation', default=False)
-        self.rate = rospy.Rate(rospy.get_param('~rate', default=125))
+        node_rate = rospy.get_param('~rate', default=125)
         self.lamda = rospy.get_param('~lambda', default=0.1)
         self.isPsudoInverse = rospy.get_param('~is_psudo_inverse', default=False)
+
+        print isSimulation
+        print node_rate
 
         # Default exercise
         self.exerciseType = ExerciseType.Horizontal
@@ -77,45 +80,47 @@ class Robot:
         self.hasExerciseChanged = False
         init = True
         rospy.loginfo("STARTING ROBOT NODE")
+        self.rate = rospy.Rate(node_rate)
         while not rospy.is_shutdown():
-            if self.robotReady:
-                if init or self.hasExerciseChanged:
-                    if self.hasExerciseChanged:
-                        rospy.logwarn("Changing the exercise")
-                        rospy.sleep(1)
-                        rospy.logwarn("Moving to new position")
-                    else:
-                        rospy.sleep(1)
-                        self.force_sensor_reset()
-                        self.force_offset = self.getWrenchNoOffset()
-
-                    position, quaternion = self.getGoalPosition()
-                    self.start_pose = np.array([position, quaternion])
-
-                    print self.start_pose
-
-                    init = False
-                    self.hasExerciseChanged = False
-
-                self.getCurrentTrasformationData()
-                self.pubPosition()
-                controller = self.impedance_control(self.start_pose, self.resistance)
-
-                q1 = self.q[0]
-                q2 = self.q[1]
-                q3 = self.q[2]
-                q4 = self.q[3]
-                q5 = self.q[4]
-                q6 = self.q[5]
-                Jac_psudo = self.jac_function(q1, q2, q3, q4, q5, q6)
-                V_ref = np.transpose(controller)
-                dq = np.matmul(Jac_psudo, V_ref)
-                dq_value = np.asarray(dq).reshape(-1)
-
-                self.q_dot(dq_value)
-                # self.getRobotState()
-
             self.rate.sleep()
+            # if self.robotReady:
+            #     if init or self.hasExerciseChanged:
+            #         if self.hasExerciseChanged:
+            #             rospy.logwarn("Changing the exercise")
+            #             rospy.sleep(1)
+            #             rospy.logwarn("Moving to new position")
+            #         else:
+            #             rospy.sleep(1)
+            #             self.force_sensor_reset()
+            #             self.force_offset = self.getWrenchNoOffset()
+            #
+            #         position, quaternion = self.getGoalPosition()
+            #         self.start_pose = np.array([position, quaternion])
+            #
+            #         print self.start_pose
+            #
+            #         init = False
+            #         self.hasExerciseChanged = False
+            #
+            #     self.getCurrentTrasformationData()
+            #     self.pubPosition()
+            #     controller = self.impedance_control(self.start_pose, self.resistance)
+            #
+            #     q1 = self.q[0]
+            #     q2 = self.q[1]
+            #     q3 = self.q[2]
+            #     q4 = self.q[3]
+            #     q5 = self.q[4]
+            #     q6 = self.q[5]
+            #     Jac_psudo = self.jac_function(q1, q2, q3, q4, q5, q6)
+            #     V_ref = np.transpose(controller)
+            #     dq = np.matmul(Jac_psudo, V_ref)
+            #     dq_value = np.asarray(dq).reshape(-1)
+            #
+            #     self.q_dot(dq_value)
+            #     # self.getRobotState()
+
+
 
     # region Callbacks
     def jointStateCallback(self, data):
