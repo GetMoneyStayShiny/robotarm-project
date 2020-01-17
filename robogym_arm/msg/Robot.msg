@@ -1,0 +1,4 @@
+string force_str
+string resistance_str
+string onoff_light
+bool at_home
