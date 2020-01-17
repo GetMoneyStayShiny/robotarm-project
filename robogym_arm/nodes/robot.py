@@ -14,7 +14,6 @@ import enum
 class Robot:
     def __init__(self):
         rospy.init_node('RoboGYM', anonymous=True)
-
         # Robot States
         self.joints_order = []
         self.q = []
@@ -28,6 +27,8 @@ class Robot:
         self.RotationM = []
         self.mode = 'Stop'
         self.atHome = False
+        self.robotReady = False
+        self.resistance = 50
 
         # Set ros-launch params
         isSimulation = rospy.get_param('~is_simulation', default=False)
@@ -53,6 +54,7 @@ class Robot:
 
         # rospy.Subscriber("/optoforce_node/wrench_HEXHA094", WrenchStamped, self.wrenchSensorCallback)
         self.pub_reset = rospy.Publisher('/ethdaq_zero', Bool, queue_size=1)
+        # self.pub_reset = rospy.Publisher('/optoforce_node/reset', Bool, queue_size=1)
         # Publishers for the position
         self.pub_x = rospy.Publisher('/position_x', Float32, queue_size=1)
         self.pub_y = rospy.Publisher('/position_y', Float32, queue_size=1)
@@ -61,62 +63,58 @@ class Robot:
         self.pub_force_x = rospy.Publisher('/force_x', Float32, queue_size=1)
         self.pub_force_y = rospy.Publisher('/force_y', Float32, queue_size=1)
         self.pub_force_z = rospy.Publisher('/force_z', Float32, queue_size=1)
-
         # Publisher for the interface ()
         self.interface_pub = rospy.Publisher('/robogym/robot_interface_status',RobotStamped,queue_size=1)
 
+        # Subscribers
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/robogym/interface_cmd",InterfaceStamped,self.interfaceCallback)
-        # Sensor publishers and subscribers
-        # self.pub_reset = rospy.Publisher('/optoforce_node/reset', Bool, queue_size=1)
+
         self.hasExerciseChanged = False
         init = True
         rospy.loginfo("STARTING ROBOT NODE")
         while not rospy.is_shutdown():
-            if init or self.hasExerciseChanged:
+            if self.robotReady:
+                if init or self.hasExerciseChanged:
+                    if self.hasExerciseChanged:
+                        rospy.logwarn("Changing the exercise")
+                        rospy.sleep(1)
+                        rospy.logwarn("Moving to new position")
+                    else:
+                        rospy.sleep(1)
+                        self.force_sensor_reset()
+                        self.force_offset = self.getWrenchNoOffset()
 
+                    position, quaternion = self.getGoalPosition()
+                    self.start_pose = np.array([position, quaternion])
 
-                if self.hasExerciseChanged:
-                    rospy.logwarn("Changing the exercise")
-                    rospy.sleep(1)
-                    rospy.logwarn("Moving to new position")
-                else:
-                    rospy.sleep(1)
+                    print self.start_pose
 
-                position, quaternion = self.getGoalPosition()
-                self.start_pose = np.array([position, quaternion])
+                    init = False
+                    self.hasExerciseChanged = False
 
-                print self.start_pose
+                self.getCurrentTrasformationData()
+                self.pubPosition()
+                controller = self.impedance_control(self.start_pose, self.resistance)
 
-                init = False
-                self.hasExerciseChanged = False
+                q1 = self.q[0]
+                q2 = self.q[1]
+                q3 = self.q[2]
+                q4 = self.q[3]
+                q5 = self.q[4]
+                q6 = self.q[5]
+                Jac_psudo = self.jac_function(q1, q2, q3, q4, q5, q6)
+                V_ref = np.transpose(controller)
+                dq = np.matmul(Jac_psudo, V_ref)
+                dq_value = np.asarray(dq).reshape(-1)
 
-            self.getCurrentTrasformationData()
-            self.pubPosition()
+                self.q_dot(dq_value)
+                # self.getRobotState()
 
-            q1 = self.q[0]
-            q2 = self.q[1]
-            q3 = self.q[2]
-            q4 = self.q[3]
-            q5 = self.q[4]
-            q6 = self.q[5]
-            controller = self.impedance_control(self.start_pose, 50)
-
-            print self.start_pose
-            print controller
-            Jac_psudo = self.jac_function(q1, q2, q3, q4, q5, q6)
-            V_ref = np.transpose(controller)
-
-            dq = np.matmul(Jac_psudo, V_ref)
-            dq_value = np.asarray(dq).reshape(-1)
-
-            self.q_dot(dq_value)
-
-            # self.getRobotState()
             self.rate.sleep()
 
     # region Callbacks
@@ -143,6 +141,9 @@ class Robot:
             elif(data.interface.exercise_type == 3):
                 self.exerciseType = ExerciseType.BicepCurl
 
+        self.robotReady = data.interface.robot_ready
+        self.resistance = data.interface.resistance
+
     def wrenchSensorCallback(self, data):
         self.force_sensor = [data.wrench.force.x, data.wrench.force.y, data.wrench.force.z]
         self.torque_sensor = [data.wrench.torque.x, data.wrench.torque.y, data.wrench.torque.z]
@@ -163,7 +164,7 @@ class Robot:
     def publishToInterface(self):
         robotMsg = RobotStamped()
         robotMsg.robot.at_home = self.atHome
-        # robotMsg.robot.force_str =
+        robotMsg.robot.force_str = str(int(np.linalg.norm(self.getWrench() * np.array([1, 1, 1, 0, 0, 0])) / 10000))
 
     def getRobotState(self):
         state = {}
@@ -215,6 +216,9 @@ class Robot:
         command = "freedrive_mode()"
         self.command_mode(command)
 
+    def force_sensor_reset(self):
+        self.pub_reset.publish(True)
+
     # Used to command linear speed command to the robot
     # control_law is a 6x1 vector with tool speed in x,y and z-direction and rotational speed around x-y and z
     # def velocity_cmd(self, control_law, acceleration=5, time=0.05):
@@ -259,6 +263,10 @@ class Robot:
         self.orientation = result[1]
         self.quaternion = result[2]
         self.RotationM = result[3]
+
+    # Returns actual wrench from F/T-sensor
+    def getWrenchNoOffset(self):
+        return np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))
     # endregion
 
     # region ROS functions

@@ -2,38 +2,22 @@
 import rospy
 import numpy as np
 from threading import Thread, Lock
-import thread
-
 from Tkinter import *
 from PIL import ImageTk, Image
-
 from robogym_arm.msg import InterfaceStamped, RobotStamped
 
-# root = Tk()
-# popup = Toplevel()
-
 offset = 0
-resistance = 50
-
-atHome = True
-run_robot = False
-
 force_now = 0
 guide_z = False
-
 red = 30
 green = 35
 blue = 191
 
-languages = [
+exercise = [
     ("Horizontal",1),
     ("Vertical",2),
     ("BicepCurl",3)
 ]
-
-
-# at_home_light = StringVar()
-# at_home_light.set("red")
 
 start_string = """
 Unlocks the robot. The robot is now movable.
@@ -83,7 +67,9 @@ class Interface():
         self.forceVar = StringVar()
         self.onoff_light.set("red")
         self.str_res = StringVar()
-
+        self.atHome = False
+        self.run_robot = False
+        self.resistance = 50
         self.exercise_val = IntVar()
         self.exercise_val.set(1)
 
@@ -175,7 +161,7 @@ class Interface():
         exersice_details.configure(font=('Verdana', 12, 'bold'))
         exersice_details.grid(row=10, column=66, pady=2, sticky=W)
 
-        for index,language in enumerate(languages):
+        for index,language in enumerate(exercise):
             exercise_select =  Radiobutton(frame,
                                text=language,
                                variable=self.exercise_val,
@@ -274,35 +260,18 @@ class Interface():
         self.root.mainloop()
 
     def ShowChoice(self):
-        print "change choice"
         interface_msg = InterfaceStamped()
         interface_msg.interface.exercise_type = self.exercise_val.get()
         self.interface_cmd.publish(interface_msg)
-
-        # val = self.exercise_val.get()
-        # print val
-        # if val == 1:
-        #     self.text_exercise.insert(END, exercise_string)
-        # elif val == 2:
-        #     self.text_exercise.insert(END, exercise_string_forex2)
-        # elif val == 3:
-        #     self.text_exercise.insert(END, exercise_string)
-        #
-        # self.text_exercise.update()
-        # self.text_exercise.pack()
-
-
-
 
     def robot_status_callback(self,data):
         self.mutex.acquire()
         _var = data
         self.mutex.release()
         self.forceVar = data.robot.force_str
-        self.str_res = data.robot.resistance_str
+        self.atHome = data.robot.at_home
         self.onoff_light.set(data.robot.onoff_light)
         self.onoff.config(bg=self.onoff_light.get())
-        print data
 
     def guide_z_false(self):
         global guide_z
@@ -313,9 +282,13 @@ class Interface():
         guide_z = True
 
     def getWeight(self):
-        if (atHome):
-            global resistance
-            resistance = self.slideBar.get()
+        if (self.atHome):
+            self.resistance = self.slideBar.get()
+            self.str_res.set("Current resistance: " + str(self.resistance))
+            interface_msg = InterfaceStamped()
+            interface_msg.interface.resistance = self.resistance
+            interface_msg.interface.exercise_type = 0
+            self.interface_cmd.publish(interface_msg)
         else:
             popup = Toplevel()
             # self.root.withdraw()
@@ -335,21 +308,36 @@ class Interface():
         self.B1 = Button(popup, text="Done", command=popup_done).pack()
 
     def starter(self):
-        global run_robot
-        run_robot = True
+        self.run_robot = True
         self.onoff_light.set("green")
         self.onoff.config(bg=self.onoff_light.get())
+        interface_msg = InterfaceStamped()
+        interface_msg.interface.resistance = self.resistance
+        interface_msg.interface.exercise_type = 0
+        interface_msg.interface.robot_ready = self.run_robot
+        self.interface_cmd.publish(interface_msg)
+
 
     def stop(self):
-        if (atHome):
-            global run_robot
-            run_robot = False
+        if (self.atHome):
+            self.run_robot = False
             self.onoff_light.set("red")
             self.onoff.config(bg=self.onoff_light.get())
 
+            interface_msg = InterfaceStamped()
+            interface_msg.interface.resistance = self.resistance
+            interface_msg.interface.exercise_type = 0
+            interface_msg.interface.robot_ready = self.run_robot
+            self.interface_cmd.publish(interface_msg)
+
     def end(self):
         self.root.destroy()
-        run_robot = False
+        self.run_robot = False
+        interface_msg = InterfaceStamped()
+        interface_msg.interface.resistance = self.resistance
+        interface_msg.interface.exercise_type = 0
+        interface_msg.interface.robot_ready = self.run_robot
+        self.interface_cmd.publish(interface_msg)
         rospy.is_shutdown()
 
     def get(self):
@@ -361,7 +349,7 @@ class Interface():
         return "#%02x%02x%02x" % rgb
 
     def poition_set(self):
-        if (atHome):
+        if (self.atHome):
             popup = Toplevel()
             popup.grab_set()
             global guide_z
