@@ -346,7 +346,8 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        #self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
@@ -747,9 +748,16 @@ class Robot(threading.Thread):
             self.pub_x.publish(self.getTaskPosi()[0]-start_pose[0][0])
             self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
             self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
-
-            forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))
+            print("hej")
+            a = [0,0,0.3,0,0,0]
             
+            #self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
+            #if(run_robot):
+            self.velocity_cmd(a)
+            #rostopic pub /ur_hardware_interface/script_command std_msgs/String "data: 'speedl([0,0,0.3,0,0,0],0.1,10)'"
+            rospy.loginfo(a)
+            forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))
+                        
             force_now = int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
             global red
             red = force_now*(239-30)/250 + 30 
@@ -776,7 +784,7 @@ class Robot(threading.Thread):
 
             controller = self.impedance_control(pose,res)
             #controller = self.pose_control(pose)
-            
+            """
             
             if(guide_z and atHome):
                 controller = self.guide_z_control()
@@ -831,7 +839,7 @@ class Robot(threading.Thread):
             if(run_robot):
                 self.velocity_cmd(controller)  
 
-            
+            """
             self.rate.sleep()
 
 if __name__ == '__main__':
@@ -841,8 +849,8 @@ if __name__ == '__main__':
         robot_thread.daemon = True
         robot_thread.start()
 
-        gui_thread = Interface(root)
-        gui_thread.setName("GUI Thread")
+        #gui_thread = Interface(root)
+        #gui_thread.setName("GUI Thread")
        
         root.mainloop()
          

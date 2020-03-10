@@ -7,6 +7,8 @@ import tf
 import select
 import math
 import sys, termios, tty, os, time
+
+
 import Tkinter as tk
 import threading
 #import matplotlib.pyplot as plt
@@ -24,6 +26,18 @@ from Tkinter import *
 from threading import *
 from PIL import ImageTk, Image
 from numpy import matrix
+import imp
+
+sys.path.append('/usr/local/lib/python3.5/dist-packages/atracsys-4.4.1.6.dev2+g58fe057-py3.5-linux-x86_64.egg/atracsys/ftk/')
+
+#print(sys.path)
+#import atracsys.ftk as tracker_sdk
+
+#m1 = imp.load_source('Tmatrix',"./hejhej.py")
+
+#from testscript import Tmatrix
+
+
 root = Tk()
 #popup = Toplevel()
 
@@ -278,7 +292,7 @@ class Interface(threading.Thread):
     def get(self):
         global offset 
         offset = float(z.get())
-        print(offset)
+        #print(offset)
     
     def rgb_to_hex(rgb):
         return "#%02x%02x%02x" % rgb 
@@ -327,6 +341,7 @@ class Robot(threading.Thread):
         self.rate = rospy.Rate(freq) # Default frequency 125Hz
        
         #Robot States
+        self.cameraData = np.array([])
         self.joints_order = []
         self.q = []
         self.dq = [] 
@@ -346,8 +361,8 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
-	#self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)        
+        #self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
 	rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
@@ -357,12 +372,15 @@ class Robot(threading.Thread):
         #rospy.Subscriber("/optoforce_node/wrench_HEXHA094", WrenchStamped, self.wrenchSensorCallback)
         self.pub_reset = rospy.Publisher('/ethdaq_zero', Bool, queue_size=1)
         #Publishers for the position
-        self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1)
-        self.pub_y = rospy.Publisher('/positiony', Float32, queue_size=1)
-        self.pub_z = rospy.Publisher('/positionz', Float32, queue_size=1)
+        self.pub_x = rospy.Publisher('/position_x', Float32, queue_size=1)
+        self.pub_y = rospy.Publisher('/position_y', Float32, queue_size=1)
+        self.pub_z = rospy.Publisher('/position_z', Float32, queue_size=1)
+	self.pub_force_x = rospy.Publisher('/force_x', Float32, queue_size=1)
+	self.pub_force_y = rospy.Publisher('/force_y', Float32, queue_size=1)
+	self.pub_force_z = rospy.Publisher('/force_z', Float32, queue_size=1)
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
-
+        rospy.Subscriber("chatter", String,  self.cameraCallback)
         
         rospy.sleep(0.1) #time needed for initialization 
 
@@ -370,7 +388,7 @@ class Robot(threading.Thread):
         self.force_offset = self.getWrenchNoOffset()
         #self.spin()
 
-
+    
 #######################################
 ###### USER DEFINED CONTROLLERS #######
 ######  WITH VELOCITY COMMAND   #######
@@ -391,7 +409,10 @@ class Robot(threading.Thread):
 
 
 
-    def impedance_control(self, desired_pose, k, c = 100, force_scaling=0.00005):
+    def impedance_control(self, desired_pose, k, c = 160, force_scaling=0.00005):#, TransMat):
+	#EX1 : c = 100
+	#EX2 : c = 160
+	#EX3 : c = 160
         c=float(c)
         k=float(k)
         self.mode = 'impedance controller'
@@ -405,10 +426,14 @@ class Robot(threading.Thread):
         # could be seen as "adding" two rotations
         # multiplying the desired quaternion with the inverse of the current quaternion gives the error, 
         # could be seen as the "difference" between them
+
         error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
         error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         SelectionVector = np.array([1,2,2,2,2,2])
         error = error*SelectionVector
+	
+	#error = error * TransMat
+
 
         # measured_force is in tool frame and must be transformed to base frame
 
@@ -433,22 +458,21 @@ class Robot(threading.Thread):
 		measured = np.array([0,0,0,0,0,0])
 	val = 0.3
 	
-	corr = 0.48
+	corr = 0.3
 	#measured[2] = -measured[2]
-	print measured
+	#print measured
 	tmp = measured[2]
 	measured[2] = measured[1]
 	measured[1] = -tmp
-	if(abs(measured[2]) < 55000 and abs(error[0]) < 0.03 and abs(error[1]) < 0.03):
+	if(abs(measured[2]) < 55000 and abs(error[0]) < 0.03 and abs(error[1]) < 0.3):
 		measured[1] = 0
 		measured[0] = 0
 		measured[2] = 0
-		print "===================================="
-		print  "HOME"
-		print "===================================="
+		#print "===================================="
+		#print  "HOME"
+		#print "===================================="
         
-	
-	"""
+
 	#EX1
 
 	
@@ -456,18 +480,17 @@ class Robot(threading.Thread):
 	measured[1] = measured[1]*0.5
 	measured[2] = measured[2]*2
 	measured[0] = measured[0]*0.1
-	"""
+	
 	
 	
 	#EX 2
 
 	
-	
+	"""
 	measured[1] = measured[1]*0.2
 	measured[0] = measured[0]*0.1
 	measured[2] = measured[2]*0.8
-	
-	
+	"""
 	#EX3
 	"""
 	measured[1] = measured[1]*0.5
@@ -475,13 +498,14 @@ class Robot(threading.Thread):
 	measured[0] = measured[0]*0.1
 	"""
 
-	control_law = val*error + (force_scaling/c)*measured
+	#control_law = val*error + (force_scaling/c)*measured
 	#data = Float32()
-	#self.pub_force_x.publish(measured[0])
-	#self.pub_force_y.publish(measured[1])
-	#self.pub_force_z.publish(measured[2])
+	self.pub_force_x.publish(measured[0])
+	self.pub_force_y.publish(measured[1])
+	self.pub_force_z.publish(measured[2])
         #control_law = (corr*k/c)*error + force_scaling/c*measured
-        #control_law = k/c*error + force_scaling/c*measured_force
+	#print error[0],error[1],error[2]
+        control_law = k/c*error + force_scaling/c*measured
         #control_law = force_scaling/c * measured_force
        	#print control_law
         #print("error ", error)
@@ -611,13 +635,15 @@ class Robot(threading.Thread):
 	#######################################
 	# FIRST EXERCISE
 	#######################################
-	#position = np.array([-0.15792, -0.35975, 0.4525])
-        #quaternion = np.array([ 0.6757655,  -0.00147379,  0.00949065,  0.7370541])
+	position = np.array([-0.15792, -0.35975, 0.4525])
+        quaternion = np.array([ 0.6757655,  -0.00147379,  0.00949065,  0.7370541])
 	#######################################
 	# SECOND EXERCISE
 	#######################################
-	position = np.array([-0.15651, -0.69471, 0.0553])
-        quaternion = np.array([ 0.67570833, -0.01028819,  0.01689194,  0.7369037])
+	#position = np.array([-0.15651, -0.69471, 0.0553])
+        #quaternion = np.array([ 0.67570833, -0.01028819,  0.01689194,  0.7369037])
+	#position = np.array([-0.20673, -0.61667, 0.14893])
+        #quaternion = np.array([0.68880977, -0.04668559, -0.01346968,  0.72331191])
 	#######################################
 	# Third EXERCISE
 	#######################################
@@ -677,7 +703,7 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 5, time = 0.05):
+    def q_dot(self, dq_value, acceleration = 0.5, time = 0.05):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
@@ -718,6 +744,10 @@ class Robot(threading.Thread):
         self.torque_sensor = [data.wrench.torque.x, data.wrench.torque.y, data.wrench.torque.z]
         self.sensor_header = data.header
 
+    def cameraCallback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+        #self.cameraData = data.data
+
     def jointStateCallback(self, data):
         self.q = data.position
         self.dq = data.velocity
@@ -744,7 +774,7 @@ class Robot(threading.Thread):
             quaternion = tf.transformations.quaternion_from_matrix(transrotM)
             return trans, euler,transrotM, quaternion
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            print("EXCEPTION")
+            #print("EXCEPTION")
             pass 
 
 
@@ -896,7 +926,7 @@ class Robot(threading.Thread):
 
 
 
-	
+	#print(Tmatrix)
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
         position, quaternion = self.goalPosition(position,quaternion)
@@ -971,8 +1001,8 @@ if __name__ == '__main__':
         robot_thread.daemon = True
         robot_thread.start()
 
-        gui_thread = Interface(root)
-        gui_thread.setName("GUI Thread")
+        #gui_thread = Interface(root)
+        #gui_thread.setName("GUI Thread")
        
         root.mainloop()
          
