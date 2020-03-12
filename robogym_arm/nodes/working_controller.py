@@ -27,6 +27,7 @@ from threading import *
 from PIL import ImageTk, Image
 from numpy import matrix
 import imp
+import re
 
 sys.path.append('/usr/local/lib/python3.5/dist-packages/atracsys-4.4.1.6.dev2+g58fe057-py3.5-linux-x86_64.egg/atracsys/ftk/')
 
@@ -420,18 +421,22 @@ class Robot(threading.Thread):
         actual_position = self.getTaskPosi()
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
-        error_position = desired_position_base - actual_position
+        Tmatrix = self.cameraData
+        vec = Tmatrix[0:3,3:4].flatten()
+        #print(desired_position_base*vec)
+        error_position = desired_position_base*vec - actual_position
 
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
         # could be seen as "adding" two rotations
         # multiplying the desired quaternion with the inverse of the current quaternion gives the error, 
         # could be seen as the "difference" between them
-
         error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
+        
         error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         SelectionVector = np.array([1,2,2,2,2,2])
         error = error*SelectionVector
-	
+	#print("=====================================")
+        #print(error)
 	#error = error * TransMat
 
 
@@ -738,15 +743,22 @@ class Robot(threading.Thread):
 #######################################
 ############# CALLBACKS ###############
 #######################################
-
+ 
     def wrenchSensorCallback(self, data):
         self.force_sensor = [data.wrench.force.x, data.wrench.force.y, data.wrench.force.z]
         self.torque_sensor = [data.wrench.torque.x, data.wrench.torque.y, data.wrench.torque.z]
         self.sensor_header = data.header
 
     def cameraCallback(self, data):
-        rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
-        #self.cameraData = data.data
+        #rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+        stringform = data.data.replace("[", "")
+        stringform = stringform.replace("]", "")
+        stringform = stringform.replace(",", " ")
+        Tmatrix = np.fromstring(stringform, dtype=float, sep=' ')
+        Tmatrix = np.reshape(Tmatrix, (4,4))
+        self.cameraData = Tmatrix
+
+        
 
     def jointStateCallback(self, data):
         self.q = data.position

@@ -1,0 +1,35 @@
+Starting logging on 2020-03-12 at 09:25:10
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 2 at 1584001510396
+Sent packet 2 at 1584001510396
+Received packet answering to 1 at 1584001510397
+devFusionTrack.cpp, line 235: reading SN MSBs
+Sending packet 3 at 1584001510397
+Sent packet 3 at 1584001510397
+Received packet answering to 2 at 1584001510405
+- Device 0xE30000091D052628 found (ip=172.17.1.7, port=3509)
+- Configure Device
+devDeviceInfoExt.cpp, line 1155: connecting the socket
+devDeviceInfoExt.cpp, line 1174: reading registers description address
+devDeviceInfoExt.cpp, line 1182: downloading the register description
+devDeviceInfoExt.cpp, line 1196: testing UPD packet size
+  ? Testing UDP packet size of 8132
+  + Setting UDP packet size to 8144
+devDeviceInfoExt.cpp, line 1201: looking for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1210: writing for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1221: looking for DEVICE_VERSION register
+devDeviceInfoExt.cpp, line 1275: downloading calibration
+  ! Cannot upload factory file
+devDeviceInfoExt.cpp, line 1288: uniforming compression
+devDeviceInfoExt.cpp, line 1297: looking for ACQUISITION register
+devDeviceInfoExt.cpp, line 1305: writing for ACQUISITION register
++ Configuration Done
+devDeviceInfoExt.cpp, line 212: cannot find register "FACT_HARD_VERSION"
+devDeviceInfoExt.cpp, line 1546: wrong status
+devDeviceInfoExt.cpp, line 212: cannot find register "PLAIN_NUMBER_LOW"
+Old version of the calibration file
+devDeviceInfoExt.cpp, line 1546: wrong status
+ftkDevice.cpp line 877: cannot read value from register ACC0_RANGE
+devDeviceInfoExt.cpp, line 1546: wrong status
+ftkDevice.cpp line 893: cannot read value from register ACC1_RANGE
