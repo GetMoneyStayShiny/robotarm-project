@@ -1,0 +1,23 @@
+Starting logging on 2020-03-27 at 13:27:26
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 2 at 1585312046284
+Sent packet 2 at 1585312046284
+Received packet answering to 1 at 1585312046288
+devFusionTrack.cpp, line 235: reading SN MSBs
+Sending packet 3 at 1585312046288
+Sent packet 3 at 1585312046288
+Received packet answering to 2 at 1585312046296
+- Device 0xE30000091D052628 found (ip=172.17.1.7, port=3509)
+- Configure Device
+devDeviceInfoExt.cpp, line 1155: connecting the socket
+devDeviceInfoExt.cpp, line 1174: reading registers description address
+devDeviceInfoExt.cpp, line 1182: downloading the register description
+devDeviceInfoExt.cpp, line 1196: testing UPD packet size
+  ? Testing UDP packet size of 8132
+  + Setting UDP packet size to 8144
+devDeviceInfoExt.cpp, line 1201: looking for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1210: writing for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1221: looking for DEVICE_VERSION register
+devDeviceInfoExt.cpp, line 1275: downloading calibration
+Trying to enable data sending back

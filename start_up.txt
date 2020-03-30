@@ -90,8 +90,43 @@ rosurn robogym_arm working_controller.py
 
 
 
+
+
+
+\\\
+
+Thesis
+
+
+\\\
+
+(terminal 1)
+roslaunch ur_robot_driver ur10_bringup.launch robot_ip:=localhost kinematics_config:=$HOME/ur10_calibration.yaml
+
+or
+
+roslaunch ur_modern_driver ur10_bringup.launch robot_ip:=192.168.1.115
+roslaunch ur_modern_driver ur10_bringup.launch robot_ip:=192.168.20.42
+roslaunch ur_modern_driver ur10_bringup.launch robot_ip:=192.168.20.55
+
+
+
+terminal 2
+
+python3 working_camera
+
+RUN CODE
+terminal 3:
+rosrun robogym_arm working_controller.py
+
   
 
+
+check
+
+-1.7442
+-0.0364
+-2.9785
 
 
 

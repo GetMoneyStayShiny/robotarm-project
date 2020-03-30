@@ -30,6 +30,9 @@ current_marker_index = 1
 
 def talker():
     pub = rospy.Publisher('chatter', String, queue_size=10)
+    ch2 = rospy.Publisher('/geom2', String, queue_size=10)
+    ch4 = rospy.Publisher('/geom4', String, queue_size=10)
+    ch9 = rospy.Publisher('/geom9', String, queue_size=10)
     rospy.init_node('talker', anonymous=True)
     rate = rospy.Rate(20) # 10hz
     
@@ -71,15 +74,18 @@ def talker():
         if tracking_system.set_geometry(os.path.join(geometry_path, geometry)) != tracker_sdk.Status.Ok:
             exit_with_error("Error, can't create frame object.", tracking_system)
 
-
-    
+    global Tmatrix2, Tmatrix4, Tmatrix9
+    Tmatrix2 = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+    Tmatrix4 = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+    Tmatrix9 = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
     
     while not rospy.is_shutdown():
         global x
         global markers_indexes
         global current_marker_index
-        global Tmatrix
-        Tmatrix = []
+        
+        
+     
         x += 1
         tracking_system.get_last_frame(frame)
 
@@ -94,22 +100,30 @@ def talker():
 
             if markers_indexes[marker.geometry_id] < max_number_of_tracked_markers:
                 
-                if (marker.geometry_id == 2 or marker.geometry_id == 4 or marker.geometry_id == 9):
-                    for a in range(len(marker.rotation)):
-                        tmp = [marker.position[a]]
-                        tmpmatrix = marker.rotation[a] + tmp
-                        Tmatrix = Tmatrix + tmpmatrix
-                    Tmatrix = Tmatrix + [0,0,0,1]
-                    Tmatrix = np.reshape(Tmatrix, (4,4))
+                if(marker.geometry_id == 2):
+                    Tmatrix2 = np.array([[marker.rotation[0][0], marker.rotation[0][1], marker.rotation[0][2], marker.position[0]], [marker.rotation[1][0], marker.rotation[1][1], marker.rotation[1][2], marker.position[1]], [marker.rotation[2][0], marker.rotation[2][1], marker.rotation[2][2], marker.position[2]], [0,0,0,1]])                     
+                 
+
+                if(marker.geometry_id == 4):            
+                    Tmatrix4 = np.array([[marker.rotation[0][0], marker.rotation[0][1], marker.rotation[0][2], marker.position[0]], [marker.rotation[1][0], marker.rotation[1][1], marker.rotation[1][2], marker.position[1]], [marker.rotation[2][0], marker.rotation[2][1], marker.rotation[2][2], marker.position[2]], [0,0,0,1]])
+                   
+
+                if(marker.geometry_id == 9):
+                    Tmatrix9 = np.array([[marker.rotation[0][0], marker.rotation[0][1], marker.rotation[0][2], marker.position[0]], [marker.rotation[1][0], marker.rotation[1][1], marker.rotation[1][2], marker.position[1]], [marker.rotation[2][0], marker.rotation[2][1], marker.rotation[2][2], marker.position[2]], [0,0,0,1]])
                     
-                    print(Tmatrix)
-        if len(Tmatrix) == 0:
-            Tmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
-            print(Tmatrix)
-        rosFormatMatrix = np.array2string(Tmatrix, precision=20, separator=',', suppress_small=True)
-        hello_str = rosFormatMatrix
+   
+        print(Tmatrix2)
+        print(Tmatrix4)
+        print(Tmatrix9)
+        rosFormatMatrix2 = np.array2string(Tmatrix2, precision=20, separator=',', suppress_small=True)
+        rosFormatMatrix4 = np.array2string(Tmatrix4, precision=20, separator=',', suppress_small=True)
+        rosFormatMatrix9 = np.array2string(Tmatrix9, precision=20, separator=',', suppress_small=True)
+        #hello_str = rosFormatMatrix
         #rospy.loginfo(hello_str)
-        pub.publish(hello_str)
+        ch2.publish(rosFormatMatrix2)
+        ch4.publish(rosFormatMatrix4)
+        ch9.publish(rosFormatMatrix9)
+        
         #rospy.Publisher('/cameraData', hello_str, queue_size=1)
 
         #print(hello_str)

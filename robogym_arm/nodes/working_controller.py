@@ -3,6 +3,7 @@ import roslib
 import rospy 
 import numpy as np 
 import time
+import tf2_ros as tf2
 import tf
 import select
 import math
@@ -29,15 +30,11 @@ from numpy import matrix
 import imp
 import re
 
+
 sys.path.append('/usr/local/lib/python3.5/dist-packages/atracsys-4.4.1.6.dev2+g58fe057-py3.5-linux-x86_64.egg/atracsys/ftk/')
 
 #print(sys.path)
 #import atracsys.ftk as tracker_sdk
-
-#m1 = imp.load_source('Tmatrix',"./hejhej.py")
-
-#from testscript import Tmatrix
-
 
 root = Tk()
 #popup = Toplevel()
@@ -46,7 +43,7 @@ offset = 0
 resistance = 50
 str_res = StringVar()
 atHome = True
-run_robot = False
+run_robot = True
 force_plot = np.zeros(10)
 force_now = 0
 guide_z = False
@@ -335,14 +332,13 @@ class Interface(threading.Thread):
 
 class Robot(threading.Thread): 
 
-    def __init__(self, freq= 25):
+    def __init__(self, freq= 125):
         threading.Thread.__init__(self)
     
         rospy.init_node('Controller', anonymous=True)
         self.rate = rospy.Rate(freq) # Default frequency 125Hz
        
         #Robot States
-        self.cameraData = np.array([])
         self.joints_order = []
         self.q = []
         self.dq = [] 
@@ -362,9 +358,9 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        #self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
-        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
-	rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
+        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        #self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
+        rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
 
@@ -373,15 +369,15 @@ class Robot(threading.Thread):
         #rospy.Subscriber("/optoforce_node/wrench_HEXHA094", WrenchStamped, self.wrenchSensorCallback)
         self.pub_reset = rospy.Publisher('/ethdaq_zero', Bool, queue_size=1)
         #Publishers for the position
-        self.pub_x = rospy.Publisher('/position_x', Float32, queue_size=1)
-        self.pub_y = rospy.Publisher('/position_y', Float32, queue_size=1)
-        self.pub_z = rospy.Publisher('/position_z', Float32, queue_size=1)
-	self.pub_force_x = rospy.Publisher('/force_x', Float32, queue_size=1)
-	self.pub_force_y = rospy.Publisher('/force_y', Float32, queue_size=1)
-	self.pub_force_z = rospy.Publisher('/force_z', Float32, queue_size=1)
+        self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1)
+        self.pub_y = rospy.Publisher('/positiony', Float32, queue_size=1)
+        self.pub_z = rospy.Publisher('/positionz', Float32, queue_size=1)
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
-        rospy.Subscriber("chatter", String,  self.cameraCallback)
+        rospy.Subscriber("/geom2", String,  self.cameraCallback2)
+        rospy.Subscriber("/geom4", String,  self.cameraCallback4)
+        rospy.Subscriber("/geom9", String,  self.cameraCallback9)
+        
         
         rospy.sleep(0.1) #time needed for initialization 
 
@@ -389,7 +385,7 @@ class Robot(threading.Thread):
         self.force_offset = self.getWrenchNoOffset()
         #self.spin()
 
-    
+
 #######################################
 ###### USER DEFINED CONTROLLERS #######
 ######  WITH VELOCITY COMMAND   #######
@@ -410,10 +406,7 @@ class Robot(threading.Thread):
 
 
 
-    def impedance_control(self, desired_pose, k, c = 160, force_scaling=0.00005):#, TransMat):
-	#EX1 : c = 100
-	#EX2 : c = 160
-	#EX3 : c = 160
+    def impedance_control(self, desired_pose, k, c = 80, force_scaling=0.3):
         c=float(c)
         k=float(k)
         self.mode = 'impedance controller'
@@ -421,32 +414,48 @@ class Robot(threading.Thread):
         actual_position = self.getTaskPosi()
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
-        Tmatrix = self.cameraData
-        vec = Tmatrix[0:3,3:4].flatten()
-        #print(desired_position_base*vec)
-        error_position = desired_position_base*vec - actual_position
 
+        """
+        Tmatrix2 = self.cameraData2
+        Tmatrix4 = self.cameraData4
+        rotBC = np.array([[1,0,0], [0, 0, -1], [0,1,0]])
+        rotX = np.array([[1,0,0], [0, -1, 0], [0,0,-1]])
+     
+
+        desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
+        actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
+        err = (desired_pos_camera  - actual_pos_camera)
+        error_pos_camera =  np.matmul( np.matmul(rotBC , err), rotX)
+        """
+ 
+        error_position = desired_position_base - actual_position
+        #print(desired_position_base)
+        #print(actual_position)
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
         # could be seen as "adding" two rotations
         # multiplying the desired quaternion with the inverse of the current quaternion gives the error, 
         # could be seen as the "difference" between them
+        #sameCoord = np.matmul(rotBC4x4,Tmatrix4)
+
+        #quaternions_goal = tf.transformations.quaternion_from_matrix(Tmatrix4)
+        #quaternions_endeffector = tf.transformations.quaternion_from_matrix(Tmatrix2)
+
         error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
-        
+        #error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
+        #print(error_angle)
+        #print(error_pos_camera)
+        #error_ang = np.matmul(np.matmul(rotBC , error_angle[0:3]), rotX)
+        #error = np.append(error_pos_camera, error_ang)
+        #error = error/1000
         error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
-        SelectionVector = np.array([1,2,2,2,2,2])
-        error = error*SelectionVector
-	#print("=====================================")
         #print(error)
-	#error = error * TransMat
+        print(error)
 
-
-        # measured_force is in tool frame and must be transformed to base frame
-
+       
         #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
         velocity = np.append(np.array(self.getToolLinearVelocity()) ,np.array([0,0,0]))
         measured_force = self.reference_frame('tool', self.getWrench())
         force_array = np.array([0,0,0])
-	
 
         measured = np.append(np.array(self.force_sensor), force_array)
 	#print measured
@@ -454,63 +463,14 @@ class Robot(threading.Thread):
         #print self.force_sensor
 	kp = 2
         kd = 1
+        kr = 20
         #print(k)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
         #control_law = k/c*error
-	if len(measured) < 5:
-		measured = np.array([0,0,0,0,0,0])
-	val = 0.3
-	
-	corr = 0.3
-	#measured[2] = -measured[2]
-	#print measured
-	tmp = measured[2]
-	measured[2] = measured[1]
-	measured[1] = -tmp
-	if(abs(measured[2]) < 55000 and abs(error[0]) < 0.03 and abs(error[1]) < 0.3):
-		measured[1] = 0
-		measured[0] = 0
-		measured[2] = 0
-		#print "===================================="
-		#print  "HOME"
-		#print "===================================="
-        
-
-	#EX1
-
-	
-	
-	measured[1] = measured[1]*0.5
-	measured[2] = measured[2]*2
-	measured[0] = measured[0]*0.1
-	
-	
-	
-	#EX 2
-
-	
-	"""
-	measured[1] = measured[1]*0.2
-	measured[0] = measured[0]*0.1
-	measured[2] = measured[2]*0.8
-	"""
-	#EX3
-	"""
-	measured[1] = measured[1]*0.5
-	measured[2] = measured[2]*2
-	measured[0] = measured[0]*0.1
-	"""
-
-	#control_law = val*error + (force_scaling/c)*measured
-	#data = Float32()
-	self.pub_force_x.publish(measured[0])
-	self.pub_force_y.publish(measured[1])
-	self.pub_force_z.publish(measured[2])
-        #control_law = (corr*k/c)*error + force_scaling/c*measured
-	#print error[0],error[1],error[2]
-        control_law = k/c*error + force_scaling/c*measured
+	#print measured_force
+        control_law = kr/c*error 
         #control_law = force_scaling/c * measured_force
        	#print control_law
         #print("error ", error)
@@ -570,15 +530,24 @@ class Robot(threading.Thread):
         control_law = desire_velocity + kd_inv * ( position_term + (  measured_force ) ) #force  is measured wrt the base frame(not true anymore) 
         return self.reference_frame(frame,control_law)
  
+
     def force_sensor_reset(self):      
         self.pub_reset.publish(True)
+
+
 
 
 #######################################
 ############ JACOBIAN #################
 #######################################
 
-    def jac_function(self,q1,q2,q3,q4,q5,q6):   
+    def jac_function(self):   
+	q1 = self.q[0]
+	q2 = self.q[1]
+	q3 = self.q[2]
+	q4 = self.q[3]
+	q5 = self.q[4]
+	q6 = self.q[5]
 
 	#print q6
 
@@ -602,28 +571,18 @@ class Robot(threading.Thread):
         d6 =  0.0922
    
         Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
-	
 
-
-	Jac_psudo = np.linalg.pinv(Jac)
-	lambdaa = 0
-        #print Jac_psudo
-        #Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
-	#print Jac_psudo
+        Jac_psudo = np.linalg.pinv(Jac)
         return Jac_psudo
-
-
-
-
 
 #######################################
 ############ NEW FUNCTION #############
 #######################################
 
     def findPosition(self):
-	roll = 1.483    
-        pitch = 0.006
-        yaw = 0.181
+	roll = 1.5155    
+        pitch = -0.3226
+        yaw = 0.1297
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -637,7 +596,9 @@ class Robot(threading.Thread):
 	#return newQut
 
     def goalPosition(self, position, quaternion):
-	#######################################
+	#position = np.array([-0.17239, -0.38559, 0.46098])
+        #quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
+        #######################################
 	# FIRST EXERCISE
 	#######################################
 	position = np.array([-0.15792, -0.35975, 0.4525])
@@ -655,8 +616,6 @@ class Robot(threading.Thread):
 	#position = np.array([-0.07609, -0.47965, -0.01873])
         #quaternion = np.array([0.67242794, 0.06324287, 0.06463054, 0.7346182])
 	return position, quaternion
-
-
 #######################################
 ############ UR FUNCTIONS #############
 #######################################
@@ -671,7 +630,7 @@ class Robot(threading.Thread):
 
     def command_mode(self, mode):
         command = "def command_mode():\n\n\t" + mode + "\n\twhile (True):\n\t\tsync()\n\tend\nend\n"
-        rospy.loginfo(command)
+        #rospy.loginfo(command)
         self.pub.publish(command)
     
 
@@ -708,12 +667,13 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 0.5, time = 0.05):
+    def q_dot(self, dq_value, acceleration = 5, time = 0.05):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
         #print(command)
         self.pub.publish(command)
+
 
 #######################################
 ######### ROTATION MATRICES ###########
@@ -743,22 +703,39 @@ class Robot(threading.Thread):
 #######################################
 ############# CALLBACKS ###############
 #######################################
- 
+
     def wrenchSensorCallback(self, data):
         self.force_sensor = [data.wrench.force.x, data.wrench.force.y, data.wrench.force.z]
         self.torque_sensor = [data.wrench.torque.x, data.wrench.torque.y, data.wrench.torque.z]
         self.sensor_header = data.header
+	#return self.force_sensor 
 
-    def cameraCallback(self, data):
+    def cameraCallback2(self, data):
         #rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
         stringform = data.data.replace("[", "")
         stringform = stringform.replace("]", "")
         stringform = stringform.replace(",", " ")
-        Tmatrix = np.fromstring(stringform, dtype=float, sep=' ')
-        Tmatrix = np.reshape(Tmatrix, (4,4))
-        self.cameraData = Tmatrix
+        Tmatrix2 = np.fromstring(stringform, dtype=float, sep=' ')
+        Tmatrix2 = np.reshape(Tmatrix2, (4,4))
+        self.cameraData2 = Tmatrix2
 
-        
+    def cameraCallback4(self, data):
+        #rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+        stringform = data.data.replace("[", "")
+        stringform = stringform.replace("]", "")
+        stringform = stringform.replace(",", " ")
+        Tmatrix4 = np.fromstring(stringform, dtype=float, sep=' ')
+        Tmatrix4 = np.reshape(Tmatrix4, (4,4))
+        self.cameraData4 = Tmatrix4
+
+    def cameraCallback9(self, data):
+        #rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+        stringform = data.data.replace("[", "")
+        stringform = stringform.replace("]", "")
+        stringform = stringform.replace(",", " ")
+        Tmatrix9 = np.fromstring(stringform, dtype=float, sep=' ')
+        Tmatrix9 = np.reshape(Tmatrix9, (4,4))
+        self.cameraData9 = Tmatrix9
 
     def jointStateCallback(self, data):
         self.q = data.position
@@ -785,8 +762,8 @@ class Robot(threading.Thread):
             euler = tf.transformations.euler_from_matrix(transrotM, 'sxyz'); 
             quaternion = tf.transformations.quaternion_from_matrix(transrotM)
             return trans, euler,transrotM, quaternion
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            #print("EXCEPTION")
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException, tf2.TransformException):
+            print("EXCEPTION")
             pass 
 
 
@@ -847,6 +824,8 @@ class Robot(threading.Thread):
     #Returns x-y and z pos in meters as a vector [x, y, z]
     def getTaskPosi(self): 
         result = self.transfMat('base','tool0_controller')
+        if result == None:
+            result = np.array([[0,0,0],[0,0,0]])
         self.position = result[0]
         return self.position
 
@@ -874,9 +853,11 @@ class Robot(threading.Thread):
     # Returns wrench from the force sensor with respect taken to initial values
     def getWrench(self):
         wrench = np.concatenate((np.array(self.force_sensor), np.array(self.torque_sensor)))-self.force_offset 
-        #return wrench
+	if len(wrench) == 0:
+		wrench = np.array([-1,0,0,0,0,0])     
+	return wrench
         #return np.random.rand(6)*100000*2
-        return np.zeros(6)
+        #return np.zeros(6)
         #return np.array([-1,0,0,0,0,0])
 
 
@@ -938,7 +919,7 @@ class Robot(threading.Thread):
 
 
 
-	#print(Tmatrix)
+	
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
         position, quaternion = self.goalPosition(position,quaternion)
@@ -969,33 +950,35 @@ class Robot(threading.Thread):
 
             res = resistance
             global str_res 
-            str_res.set("Current resistance: "+ str(res))
+            str_res.set("Current resistance: "+str(res))
 
             pose = start_pose
             global atHome
             atHome = self.proximityCheck(start_pose, 0.03)
             #print(run_robot)
             #print(atHome)
-	    
+
 
 	    #######################################
             ############ MAIN  ####################
             ####################################### 
-	    q1 = self.q[0]
-	    q2 = self.q[1]
-	    q3 = self.q[2]
-	    q4 = self.q[3]
-	    q5 = self.q[4]
-	    q6 = self.q[5]
 	    controller = self.impedance_control(pose,res)
-            Jac_psudo = self.jac_function(q1,q2,q3,q4,q5,q6)
+            Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
 	    #self.findPosition()
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
 	    #print dq_value
 	    
-            self.q_dot(dq_value)
+            #self.q_dot(dq_value)
+
+
+
+
+
+
+
+
 
 
 
