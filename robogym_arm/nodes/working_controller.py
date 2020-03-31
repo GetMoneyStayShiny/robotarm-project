@@ -415,55 +415,38 @@ class Robot(threading.Thread):
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
 
-        """
+        
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
         rotBC = np.array([[1,0,0], [0, 0, -1], [0,1,0]])
-        rotX = np.array([[1,0,0], [0, -1, 0], [0,0,-1]])
-     
+        rotY = np.array([[-1,0,0], [0, 1, 0], [0,0,-1]])
 
         desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
         actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
         err = (desired_pos_camera  - actual_pos_camera)
-        error_pos_camera =  np.matmul( np.matmul(rotBC , err), rotX)
-        """
- 
+        error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
+
         error_position = desired_position_base - actual_position
-        #print(desired_position_base)
-        #print(actual_position)
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
         # could be seen as "adding" two rotations
         # multiplying the desired quaternion with the inverse of the current quaternion gives the error, 
         # could be seen as the "difference" between them
         #sameCoord = np.matmul(rotBC4x4,Tmatrix4)
 
-        #quaternions_goal = tf.transformations.quaternion_from_matrix(Tmatrix4)
-        #quaternions_endeffector = tf.transformations.quaternion_from_matrix(Tmatrix2)
+        quaternions_goal = tf.transformations.quaternion_from_matrix(Tmatrix4)
+        quaternions_endeffector = tf.transformations.quaternion_from_matrix(Tmatrix2)
 
-        error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
-        #error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
-        #print(error_angle)
-        #print(error_pos_camera)
-        #error_ang = np.matmul(np.matmul(rotBC , error_angle[0:3]), rotX)
-        #error = np.append(error_pos_camera, error_ang)
-        #error = error/1000
-        error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
+        #error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
+        error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
+
+        error_ang = np.matmul(rotBC, np.matmul(rotY , error_angle[0:3]))
+        error = np.append(error_pos_camera, error_ang)
+
+        #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(error)
-        print(error)
-
        
-        #print(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
-        velocity = np.append(np.array(self.getToolLinearVelocity()) ,np.array([0,0,0]))
-        measured_force = self.reference_frame('tool', self.getWrench())
-        force_array = np.array([0,0,0])
 
-        measured = np.append(np.array(self.force_sensor), force_array)
-	#print measured
-	#measured_force = self.reference_frame('tool', self.getWrench())
-        #print self.force_sensor
-	kp = 2
-        kd = 1
-        kr = 20
+        kr = 4
         #print(k)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
@@ -471,11 +454,6 @@ class Robot(threading.Thread):
         #control_law = k/c*error
 	#print measured_force
         control_law = kr/c*error 
-        #control_law = force_scaling/c * measured_force
-       	#print control_law
-        #print("error ", error)
-        #print("force ", measured_force)
-        #testSelectionVector = np.array([0.5,1,0.5,1,1,1])
         #control_law = control_law *testSelectionVector
         
         
@@ -970,7 +948,7 @@ class Robot(threading.Thread):
 	    dq_value = np.asarray(dq).reshape(-1)
 	    #print dq_value
 	    
-            #self.q_dot(dq_value)
+            self.q_dot(dq_value)
 
 
 

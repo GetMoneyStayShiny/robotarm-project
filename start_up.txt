@@ -124,6 +124,13 @@ rosrun robogym_arm working_controller.py
 
 check
 
+
+
+
+//// MEETING
+
+stop moving when out of view
+
 -1.7442
 -0.0364
 -2.9785
