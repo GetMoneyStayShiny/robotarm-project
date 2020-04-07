@@ -372,12 +372,15 @@ class Robot(threading.Thread):
         self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1)
         self.pub_y = rospy.Publisher('/positiony', Float32, queue_size=1)
         self.pub_z = rospy.Publisher('/positionz', Float32, queue_size=1)
+        self.pub_xd = rospy.Publisher('/positionxd', Float32, queue_size=1)
+        self.pub_yd = rospy.Publisher('/positionyd', Float32, queue_size=1)
+        self.pub_zd = rospy.Publisher('/positionzd', Float32, queue_size=1)
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/geom2", String,  self.cameraCallback2)
         rospy.Subscriber("/geom4", String,  self.cameraCallback4)
         rospy.Subscriber("/geom9", String,  self.cameraCallback9)
-        
+        self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1) 
         
         rospy.sleep(0.1) #time needed for initialization 
 
@@ -417,6 +420,8 @@ class Robot(threading.Thread):
 
         
         Tmatrix2 = self.cameraData2
+        
+        
         Tmatrix4 = self.cameraData4
         rotBC = np.array([[1,0,0], [0, 0, -1], [0,1,0]])
         rotY = np.array([[-1,0,0], [0, 1, 0], [0,0,-1]])
@@ -446,7 +451,7 @@ class Robot(threading.Thread):
         #print(error)
        
 
-        kr = 4
+        kr = 0.5
         #print(k)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
@@ -457,7 +462,7 @@ class Robot(threading.Thread):
         #control_law = control_law *testSelectionVector
         
         
-        return control_law
+        return [control_law, Tmatrix2, Tmatrix4]
         
     # Uses only the position to control and does not involve forces. 
     # The robot returns to a fixed pose and can't be moved away by applying forces
@@ -906,9 +911,10 @@ class Robot(threading.Thread):
         while (not rospy.is_shutdown()): 
 	
             # Publishing, for being able to plot later
-            self.pub_x.publish(self.getTaskPosi()[0]-start_pose[0][0])
-            self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
-            self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
+            
+            #self.pub_x.publish(self.cameraData2[0][3])
+            #self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
+            #self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
             
 
             forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
@@ -940,16 +946,26 @@ class Robot(threading.Thread):
 	    #######################################
             ############ MAIN  ####################
             ####################################### 
-	    controller = self.impedance_control(pose,res)
+	    controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose,res)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
 	    #self.findPosition()
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
 	    #print dq_value
-	    
             self.q_dot(dq_value)
 
+
+
+
+	    self.pub_x.publish(Tmatrix2[0][3])
+            self.pub_y.publish(Tmatrix2[1][3])
+            self.pub_z.publish(Tmatrix2[2][3])
+            self.pub_xd.publish(Tmatrix4[0][3])
+            self.pub_yd.publish(Tmatrix4[1][3])
+            self.pub_zd.publish(Tmatrix4[2][3])
+            
+             
 
 
 

@@ -1,0 +1,40 @@
+Starting logging on 2020-04-07 at 14:05:11
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 2 at 1586261111507
+Sent packet 2 at 1586261111507
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586261113008
+Sent packet 2 at 1586261113008
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586261114508
+Sent packet 2 at 1586261114508
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586261116008
+Sent packet 2 at 1586261116008
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586261117509
+Sent packet 2 at 1586261117509
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+devFusionTrack.cpp, line 210: cannot read SN LSBs
+! No device detected while searching for: (172.17.1.7:3509)
+Restarting discovery with looser timeout
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 3 at 1586261119012
+Sent packet 3 at 1586261119012
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586261120512
+Sent packet 3 at 1586261120512
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586261122013
+Sent packet 3 at 1586261122013
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586261123513
+Sent packet 3 at 1586261123513
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586261125014
+Sent packet 3 at 1586261125014
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+devFusionTrack.cpp, line 210: cannot read SN LSBs
+! No device detected while searching for: (172.17.1.7:3509)

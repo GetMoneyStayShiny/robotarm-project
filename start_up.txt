@@ -137,3 +137,5 @@ stop moving when out of view
 
 
 
+Extrinic parameters -> P_c = K*[R t] -> rq factorisering -> camera matrix 
+
