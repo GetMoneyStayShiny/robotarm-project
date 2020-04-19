@@ -446,12 +446,13 @@ class Robot(threading.Thread):
 
         error_ang = np.matmul(rotBC, np.matmul(rotY , error_angle[0:3]))
         error = np.append(error_pos_camera, error_ang)
-
+        #error[0] = error[0] - 0.05
+        print(error)
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(error)
        
 
-        kr = 0.5
+        kr = 5
         #print(k)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
