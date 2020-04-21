@@ -1,0 +1,351 @@
+Starting logging on 2020-04-08 at 11:10:42
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 2 at 1586337042451
+Sent packet 2 at 1586337042451
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586337043951
+Sent packet 2 at 1586337043952
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586337045452
+Sent packet 2 at 1586337045452
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586337046952
+Sent packet 2 at 1586337046952
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1586337048452
+Sent packet 2 at 1586337048452
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+devFusionTrack.cpp, line 210: cannot read SN LSBs
+! No device detected while searching for: (172.17.1.7:3509)
+Restarting discovery with looser timeout
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 3 at 1586337049956
+Sent packet 3 at 1586337049956
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586337051457
+Sent packet 3 at 1586337051457
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586337052957
+Sent packet 3 at 1586337052957
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 3 at 1586337054458
+Sent packet 3 at 1586337054458
+Received packet answering to 2 at 1586337055298
+devFusionTrack.cpp, line 235: reading SN MSBs
+Sending packet 4 at 1586337055318
+Sent packet 4 at 1586337055318
+Received packet answering to 3 at 1586337055419
+- Device 0xE30000091D052628 found (ip=172.17.1.7, port=3509)
+- Configure Device
+devDeviceInfoExt.cpp, line 1155: connecting the socket
+devDeviceInfoExt.cpp, line 1174: reading registers description address
+devDeviceInfoExt.cpp, line 1182: downloading the register description
+devDeviceInfoExt.cpp, line 1196: testing UPD packet size
+  ? Testing UDP packet size of 8132
+  + Setting UDP packet size to 8144
+devDeviceInfoExt.cpp, line 1201: looking for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1210: writing for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1221: looking for DEVICE_VERSION register
+devDeviceInfoExt.cpp, line 1275: downloading calibration
+  ! Cannot upload calibration
+- Configure Device
+devDeviceInfoExt.cpp, line 1155: connecting the socket
+devDeviceInfoExt.cpp, line 1174: reading registers description address
+Sending packet 48 at 1586337056153
+Sent packet 48 at 1586337056153
+Received packet answering to 47 at 1586337056170
+devDeviceInfoExt.cpp, line 1182: downloading the register description
+Sending packet 49 at 1586337056170
+Sent packet 49 at 1586337056170
+Received packet answering to 48 at 1586337056193
+Sending packet 50 at 1586337056193
+Sent packet 50 at 1586337056193
+Received packet answering to 49 at 1586337056203
+Sending packet 51 at 1586337056203
+Sent packet 51 at 1586337056203
+Received packet answering to 50 at 1586337056220
+Sending packet 52 at 1586337056220
+Sent packet 52 at 1586337056220
+Received packet answering to 51 at 1586337056236
+Sending packet 53 at 1586337056236
+Sent packet 53 at 1586337056236
+Received packet answering to 52 at 1586337056245
+Sending packet 54 at 1586337056245
+Sent packet 54 at 1586337056245
+Received packet answering to 53 at 1586337056261
+devDeviceInfoExt.cpp, line 1196: testing UPD packet size
+  ? Testing UDP packet size of 8132
+Sending packet 55 at 1586337056265
+Sent packet 55 at 1586337056265
+Received packet answering to 54 at 1586337056278
+  + Setting UDP packet size to 8144
+devDeviceInfoExt.cpp, line 1201: looking for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1210: writing for PACKET_MAX_SIZE register
+Sending packet 56 at 1586337056279
+Sent packet 56 at 1586337056279
+Received packet answering to 55 at 1586337056295
+devDeviceInfoExt.cpp, line 1221: looking for DEVICE_VERSION register
+Sending packet 57 at 1586337056295
+Sent packet 57 at 1586337056295
+Received packet answering to 56 at 1586337056303
+Sending packet 58 at 1586337056303
+Sent packet 58 at 1586337056303
+Received packet answering to 57 at 1586337056312
+devDeviceInfoExt.cpp, line 1275: downloading calibration
+Sending packet 59 at 1586337056312
+Sent packet 59 at 1586337056312
+Received packet answering to 58 at 1586337056337
+Sending packet 60 at 1586337056337
+Sent packet 60 at 1586337056337
+Received packet answering to 59 at 1586337056345
+Sending packet 61 at 1586337056345
+Sent packet 61 at 1586337056345
+Received packet answering to 60 at 1586337056353
+Sending packet 62 at 1586337056353
+Sent packet 62 at 1586337056353
+Received packet answering to 61 at 1586337056370
+Sending packet 63 at 1586337056370
+Sent packet 63 at 1586337056370
+Received packet answering to 62 at 1586337056380
+Sending packet 64 at 1586337056380
+Sent packet 64 at 1586337056380
+Received packet answering to 63 at 1586337056387
+Sending packet 65 at 1586337056387
+Sent packet 65 at 1586337056387
+Received packet answering to 64 at 1586337056403
+Sending packet 66 at 1586337056403
+Sent packet 66 at 1586337056403
+Received packet answering to 65 at 1586337056412
+Sending packet 67 at 1586337056412
+Sent packet 67 at 1586337056412
+Received packet answering to 66 at 1586337056420
+Sending packet 68 at 1586337056420
+Sent packet 68 at 1586337056420
+Received packet answering to 67 at 1586337056428
+Sending packet 69 at 1586337056428
+Sent packet 69 at 1586337056428
+Received packet answering to 68 at 1586337056437
+Sending packet 70 at 1586337056437
+Sent packet 70 at 1586337056437
+Received packet answering to 69 at 1586337056445
+Sending packet 71 at 1586337056445
+Sent packet 71 at 1586337056445
+Received packet answering to 70 at 1586337056453
+Sending packet 72 at 1586337056453
+Sent packet 72 at 1586337056453
+Received packet answering to 71 at 1586337056462
+Sending packet 73 at 1586337056462
+Sent packet 73 at 1586337056462
+Received packet answering to 72 at 1586337056470
+Sending packet 74 at 1586337056470
+Sent packet 74 at 1586337056470
+Received packet answering to 73 at 1586337056478
+Sending packet 75 at 1586337056478
+Sent packet 75 at 1586337056478
+Received packet answering to 74 at 1586337056487
+Sending packet 76 at 1586337056487
+Sent packet 76 at 1586337056487
+Received packet answering to 75 at 1586337056495
+Sending packet 77 at 1586337056495
+Sent packet 77 at 1586337056495
+Received packet answering to 76 at 1586337056503
+Sending packet 78 at 1586337056503
+Sent packet 78 at 1586337056503
+Received packet answering to 77 at 1586337056512
+Sending packet 79 at 1586337056512
+Sent packet 79 at 1586337056512
+Received packet answering to 78 at 1586337056520
+Sending packet 80 at 1586337056520
+Sent packet 80 at 1586337056520
+Received packet answering to 79 at 1586337056528
+Sending packet 81 at 1586337056528
+Sent packet 81 at 1586337056528
+Received packet answering to 80 at 1586337056537
+Sending packet 82 at 1586337056537
+Sent packet 82 at 1586337056537
+Received packet answering to 81 at 1586337056545
+Sending packet 83 at 1586337056545
+Sent packet 83 at 1586337056545
+Received packet answering to 82 at 1586337056553
+Sending packet 84 at 1586337056553
+Sent packet 84 at 1586337056553
+Received packet answering to 83 at 1586337056562
+Sending packet 85 at 1586337056562
+Sent packet 85 at 1586337056562
+Received packet answering to 84 at 1586337056570
+Sending packet 86 at 1586337056570
+Sent packet 86 at 1586337056570
+Received packet answering to 85 at 1586337056578
+Sending packet 87 at 1586337056578
+Sent packet 87 at 1586337056578
+Received packet answering to 86 at 1586337056587
+Sending packet 88 at 1586337056587
+Sent packet 88 at 1586337056587
+Received packet answering to 87 at 1586337056595
+Sending packet 89 at 1586337056595
+Sent packet 89 at 1586337056595
+Received packet answering to 88 at 1586337056603
+Sending packet 90 at 1586337056603
+Sent packet 90 at 1586337056603
+Received packet answering to 89 at 1586337056612
+Sending packet 91 at 1586337056612
+Sent packet 91 at 1586337056612
+Received packet answering to 90 at 1586337056620
+Sending packet 92 at 1586337056620
+Sent packet 92 at 1586337056620
+Received packet answering to 91 at 1586337056628
+Sending packet 93 at 1586337056628
+Sent packet 93 at 1586337056628
+Received packet answering to 92 at 1586337056637
+Sending packet 94 at 1586337056637
+Sent packet 94 at 1586337056637
+Received packet answering to 93 at 1586337056647
+Sending packet 95 at 1586337056647
+Sent packet 95 at 1586337056647
+Received packet answering to 94 at 1586337056653
+Sending packet 96 at 1586337056653
+Sent packet 96 at 1586337056653
+Received packet answering to 95 at 1586337056662
+Sending packet 97 at 1586337056662
+Sent packet 97 at 1586337056662
+Received packet answering to 96 at 1586337056670
+Sending packet 98 at 1586337056670
+Sent packet 98 at 1586337056670
+Received packet answering to 97 at 1586337056678
+Sending packet 99 at 1586337056678
+Sent packet 99 at 1586337056678
+Received packet answering to 98 at 1586337056687
+Sending packet 100 at 1586337056687
+Sent packet 100 at 1586337056687
+Received packet answering to 99 at 1586337056695
+Sending packet 101 at 1586337056695
+Sent packet 101 at 1586337056695
+Received packet answering to 100 at 1586337056708
+Sending packet 102 at 1586337056708
+Sent packet 102 at 1586337056708
+Received packet answering to 101 at 1586337056712
+Sending packet 103 at 1586337056712
+Sent packet 103 at 1586337056712
+Received packet answering to 102 at 1586337056720
+Sending packet 104 at 1586337056720
+Sent packet 104 at 1586337056720
+Received packet answering to 103 at 1586337056728
+Sending packet 105 at 1586337056728
+Sent packet 105 at 1586337056729
+Received packet answering to 104 at 1586337056737
+Sending packet 106 at 1586337056737
+Sent packet 106 at 1586337056737
+Received packet answering to 105 at 1586337056745
+Sending packet 107 at 1586337056745
+Sent packet 107 at 1586337056745
+Received packet answering to 106 at 1586337056756
+Sending packet 108 at 1586337056756
+Sent packet 108 at 1586337056756
+Received packet answering to 107 at 1586337056762
+Sending packet 109 at 1586337056762
+Sent packet 109 at 1586337056762
+Received packet answering to 108 at 1586337056770
+Sending packet 110 at 1586337056770
+Sent packet 110 at 1586337056770
+Received packet answering to 109 at 1586337056778
+Sending packet 111 at 1586337056778
+Sent packet 111 at 1586337056778
+Received packet answering to 110 at 1586337056787
+Sending packet 112 at 1586337056787
+Sent packet 112 at 1586337056787
+Received packet answering to 111 at 1586337056795
+Sending packet 113 at 1586337056795
+Sent packet 113 at 1586337056795
+Received packet answering to 112 at 1586337056803
+Sending packet 114 at 1586337056803
+Sent packet 114 at 1586337056803
+Received packet answering to 113 at 1586337056812
+Sending packet 115 at 1586337056812
+Sent packet 115 at 1586337056812
+Received packet answering to 114 at 1586337056820
+Sending packet 116 at 1586337056820
+Sent packet 116 at 1586337056820
+Received packet answering to 115 at 1586337056828
+Sending packet 117 at 1586337056828
+Sent packet 117 at 1586337056828
+Received packet answering to 116 at 1586337056837
+Sending packet 118 at 1586337056837
+Sent packet 118 at 1586337056837
+Received packet answering to 117 at 1586337056845
+Sending packet 119 at 1586337056846
+Sent packet 119 at 1586337056846
+Received packet answering to 118 at 1586337056853
+Sending packet 120 at 1586337056853
+Sent packet 120 at 1586337056853
+Received packet answering to 119 at 1586337056863
+Sending packet 121 at 1586337056863
+Sent packet 121 at 1586337056863
+Received packet answering to 120 at 1586337056870
+Sending packet 122 at 1586337056870
+Sent packet 122 at 1586337056870
+Received packet answering to 121 at 1586337056879
+Sending packet 123 at 1586337056879
+Sent packet 123 at 1586337056879
+Received packet answering to 122 at 1586337056888
+  ! Cannot upload factory file
+devDeviceInfoExt.cpp, line 1288: uniforming compression
+Sending packet 124 at 1586337056888
+Sent packet 124 at 1586337056889
+Received packet answering to 123 at 1586337056896
+Sending packet 125 at 1586337056896
+Sent packet 125 at 1586337056896
+Received packet answering to 124 at 1586337056912
+devDeviceInfoExt.cpp, line 1297: looking for ACQUISITION register
+devDeviceInfoExt.cpp, line 1305: writing for ACQUISITION register
+Sending packet 126 at 1586337056912
+Sent packet 126 at 1586337056912
+Received packet answering to 125 at 1586337056928
++ Configuration Done
+Sending packet 127 at 1586337056929
+Sent packet 127 at 1586337056929
+Received packet answering to 126 at 1586337056945
+devDeviceInfoExt.cpp, line 212: cannot find register "FACT_HARD_VERSION"
+Sending packet 128 at 1586337056953
+Sent packet 128 at 1586337056953
+Received packet answering to 127 at 1586337056962
+devDeviceInfoExt.cpp, line 1546: wrong status
+devDeviceInfoExt.cpp, line 212: cannot find register "PLAIN_NUMBER_LOW"
+Sending packet 129 at 1586337056962
+Sent packet 129 at 1586337056962
+Received packet answering to 128 at 1586337056979
+Old version of the calibration file
+Sending packet 130 at 1586337056984
+Sent packet 130 at 1586337056984
+Received packet answering to 129 at 1586337057003
+devDeviceInfoExt.cpp, line 1546: wrong status
+ftkDevice.cpp line 877: cannot read value from register ACC0_RANGE
+Sending packet 131 at 1586337057003
+Sent packet 131 at 1586337057003
+Received packet answering to 130 at 1586337057019
+devDeviceInfoExt.cpp, line 1546: wrong status
+ftkDevice.cpp line 893: cannot read value from register ACC1_RANGE
+Sending packet 132 at 1586337057020
+Sent packet 132 at 1586337057020
+Received packet answering to 131 at 1586337057029
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+devFusionTrack.cpp, line 891: no picture available
+Sending packet 134 at 1586337060866
+Sent packet 134 at 1586337060866
+Received packet answering to 133 at 1586337060871
+Sending packet 135 at 1586337060871
+Sent packet 135 at 1586337060871
+Received packet answering to 134 at 1586337060881

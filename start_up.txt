@@ -139,3 +139,15 @@ stop moving when out of view
 
 Extrinic parameters -> P_c = K*[R t] -> rq factorisering -> camera matrix 
 
+
+
+punkter:
+
+Base;			camera;
+[59, -1244, 448]	[-529, 335, 1659]
+[-332, -1243, 456]	[-128, 338, 1722]
+[-324, -1119, 253]	[-154, 130, 1845]
+[-331, -702, 200]	[-213, 753, 2255]
+[159, 495, 619]		[-537, 372, 3347]
+
+

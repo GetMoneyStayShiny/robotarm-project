@@ -1,0 +1,55 @@
+Starting logging on 2020-04-21 at 17:19:07
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 2 at 1587482347076
+Sent packet 2 at 1587482347076
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1587482348576
+Sent packet 2 at 1587482348576
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1587482350077
+Sent packet 2 at 1587482350077
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1587482351577
+Sent packet 2 at 1587482351577
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Sending packet 2 at 1587482353077
+Sent packet 2 at 1587482353077
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+devFusionTrack.cpp, line 210: cannot read SN LSBs
+! No device detected while searching for: (172.17.1.7:3509)
+Restarting discovery with looser timeout
+Launching discovery service for config 172.17.1.7:3509
+devFusionTrack.cpp, line 205: reading SN LSBs
+Sending packet 3 at 1587482354580
+Sent packet 3 at 1587482354580
+Received packet answering to 2 at 1587482354583
+devFusionTrack.cpp, line 235: reading SN MSBs
+Sending packet 4 at 1587482354603
+Sent packet 4 at 1587482354603
+Received packet answering to 3 at 1587482354608
+- Device 0xE30000091D052628 found (ip=172.17.1.7, port=3509)
+- Configure Device
+devDeviceInfoExt.cpp, line 1155: connecting the socket
+devDeviceInfoExt.cpp, line 1174: reading registers description address
+devDeviceInfoExt.cpp, line 1182: downloading the register description
+devDeviceInfoExt.cpp, line 1196: testing UPD packet size
+  ? Testing UDP packet size of 8132
+  + Setting UDP packet size to 8144
+devDeviceInfoExt.cpp, line 1201: looking for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1210: writing for PACKET_MAX_SIZE register
+devDeviceInfoExt.cpp, line 1221: looking for DEVICE_VERSION register
+devDeviceInfoExt.cpp, line 1275: downloading calibration
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+devDeviceInfoExt.cpp, line 1540: cannot perfom memread sync operation
+  ! Cannot upload factory file
+devDeviceInfoExt.cpp, line 1288: uniforming compression
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+/var/jenkins/workspace/ftk_soft.atr.meta.2cams.sdk.release.public.linux.installer/soft.atr.2cams.ftk/dev/include/devPacketReader.tpp, line 91, waiting for response
+Trying to enable data sending back

@@ -51,7 +51,8 @@ forceVar = StringVar()
 red  = 30
 green = 35
 blue = 191
-
+pointsCam = np.array([[0,0,0]])
+pointsRobo = np.array([[0,0,0]])
 onoff_light = StringVar()
 onoff_light.set("red")
 
@@ -332,7 +333,7 @@ class Interface(threading.Thread):
 
 class Robot(threading.Thread): 
 
-    def __init__(self, freq= 125):
+    def __init__(self, freq= 120):
         threading.Thread.__init__(self)
     
         rospy.init_node('Controller', anonymous=True)
@@ -407,31 +408,91 @@ class Robot(threading.Thread):
         control_law = measured_force*force_scaling * selectionVector
         return control_law
 
+    def calibration(self, pointsCamLista, pointsRoboLista, desired_pose):
+        global pointsCam
+        global pointsRobo
+        actual_position = self.getTaskPosi()
+        desired_position_base = desired_pose[0]
+        desired_quaternion = desired_pose[1]
+        Tmatrix2 = self.cameraData2
+        Tmatrix4 = self.cameraData4
+        #Mmat = np.array()
+        switchonoff = True
+        desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
+        actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
+        actual_pos_camera_tmp = actual_pos_camera[:]
+        for i in range(len(actual_pos_camera)):
+            actual_pos_camera_tmp[i] = round(actual_pos_camera[i], 3)
+        
 
 
-    def impedance_control(self, desired_pose, k, c = 80, force_scaling=0.3):
-        c=float(c)
-        k=float(k)
+
+        if(len(pointsCam) > 5):
+            switchonoff = False
+            pointsCamReal = np.delete(pointsCam,[0,0,0],0)
+            pointsRoboReal = np.delete(pointsRobo,[0,0,0],0)
+            
+            dCam = pointsCamReal[:]
+            dRobo = pointsRoboReal[:]
+            meanCam = np.mean(pointsCamReal,axis=0)
+            meanRobo = np.mean(pointsRoboReal,axis=0)
+            for i in range(len(pointsCamReal)):
+                for j in range(len(pointsCamReal[0])):
+                    dCam[i][j] = pointsCamReal[i][j] - meanCam[j] 
+                    dRobo[i][j] = pointsRoboReal[i][j] - meanRobo[j]
+            l = 0    
+            Mmat = np.zeros((len(pointsCamReal)*3, len(pointsCamReal)+12))
+            for i in range(len(pointsCamReal)):
+                for j in range(len(pointsCamReal[0])):
+                    Mmat[i][l] = dCam[i][j]
+                    l=l+1
+                Mmat[i][l] = 1
+                
+            print(dCam)                    
+            print(Mmat)
+
+
+
+        #print(actual_pos_camera)
+        if(switchonoff == True):
+            if(actual_pos_camera_tmp[0] != pointsCam[len(pointsCam) - 1][0] or actual_pos_camera_tmp[1] != pointsCam[len(pointsCam) - 1][1] or actual_pos_camera_tmp[2] != pointsCam[len(pointsCam) - 1][2]):
+                pointsCam = np.vstack([pointsCam, actual_pos_camera])
+                pointsRobo = np.vstack([pointsRobo, actual_position])
+
+        
+            
+        
+
+        print("cam", len(pointsCam))
+        return pointsCam
+
+    def impedance_control(self, desired_pose):
+        c = 80
+        k = 100
+        global pointsCam
+        global pointsRobo
         self.mode = 'impedance controller'
         quaternion = self.getTaskQuaternion()
         actual_position = self.getTaskPosi()
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
-
+        
         
         Tmatrix2 = self.cameraData2
-        
-        
         Tmatrix4 = self.cameraData4
-        rotBC = np.array([[1,0,0], [0, 0, -1], [0,1,0]])
-        rotY = np.array([[-1,0,0], [0, 1, 0], [0,0,-1]])
+
+        rotGen = np.array([[0.0251,    0.0182,   -0.0435],   [0.0478,   -0.0041,    0.0222], [0.0048,   -0.0523,   -0.0207]])
+
 
         desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
         actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
-        err = (desired_pos_camera  - actual_pos_camera)
-        error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
 
-        error_position = desired_position_base - actual_position
+
+        err = (desired_pos_camera  - actual_pos_camera)
+        #error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
+        error_pos_camera = np.matmul(rotGen , err)
+
+        #error_position = desired_position_base - actual_position
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
         # could be seen as "adding" two rotations
         # multiplying the desired quaternion with the inverse of the current quaternion gives the error, 
@@ -444,22 +505,21 @@ class Robot(threading.Thread):
         #error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
         error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
 
-        error_ang = np.matmul(rotBC, np.matmul(rotY , error_angle[0:3]))
+
+        error_ang = np.matmul(rotGen , error_angle[0:3])
         error = np.append(error_pos_camera, error_ang)
-        #error[0] = error[0] - 0.05
-        print(error)
+
+    
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(error)
        
 
-        kr = 5
-        #print(k)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
         #control_law = k/c*error
 	#print measured_force
-        control_law = kr/c*error 
+        control_law = k/c*error 
         #control_law = control_law *testSelectionVector
         
         
@@ -947,14 +1007,15 @@ class Robot(threading.Thread):
 	    #######################################
             ############ MAIN  ####################
             ####################################### 
-	    controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose,res)
+	    controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
 	    #self.findPosition()
+            self.calibration(pointsCam, pointsRobo, pose)
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
 	    #print dq_value
-            self.q_dot(dq_value)
+            #self.q_dot(dq_value)
 
 
 
