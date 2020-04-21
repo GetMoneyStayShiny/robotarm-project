@@ -427,7 +427,7 @@ class Robot(threading.Thread):
 
 
 
-        if(len(pointsCam) > 5):
+        if(len(pointsCam) > 250):
             switchonoff = False
             pointsCamReal = np.delete(pointsCam,[0,0,0],0)
             pointsRoboReal = np.delete(pointsRobo,[0,0,0],0)
@@ -441,7 +441,8 @@ class Robot(threading.Thread):
                     dCam[i][j] = pointsCamReal[i][j] - meanCam[j] 
                     dRobo[i][j] = pointsRoboReal[i][j] - meanRobo[j]
             l = 0    
-            Mmat = np.zeros((len(pointsCamReal)*3, len(pointsCamReal)+12))
+            v = len(pointsCamReal*4)
+            Mmat = np.zeros((len(pointsCamReal)*3, len(pointsCamReal) + 12))
             for i in range(len(pointsCamReal)):
                 for j in range(len(pointsCamReal[0])):
                     Mmat[i][l] = dCam[i][j]
@@ -1019,7 +1020,9 @@ class Robot(threading.Thread):
 
 
 
-
+            #######################################
+            ############ Plots  ###################
+            ####################################### 
 	    self.pub_x.publish(Tmatrix2[0][3])
             self.pub_y.publish(Tmatrix2[1][3])
             self.pub_z.publish(Tmatrix2[2][3])
