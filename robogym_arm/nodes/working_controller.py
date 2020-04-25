@@ -51,8 +51,14 @@ forceVar = StringVar()
 red  = 30
 green = 35
 blue = 191
-pointsCam = np.array([[0,0,0]])
+
+
+pointsCam = np.array([[0,0,0, 0]])
 pointsRobo = np.array([[0,0,0]])
+rotGen = np.zeros((3,3))
+trajCount = 0
+
+
 onoff_light = StringVar()
 onoff_light.set("red")
 
@@ -419,44 +425,59 @@ class Robot(threading.Thread):
         #Mmat = np.array()
         switchonoff = True
         desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
-        actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
-        actual_pos_camera_tmp = actual_pos_camera[:]
+        actual_pos_camera = Tmatrix2[0:4,3:4].flatten()/1000
+        
+        global rotGen
+        actual_pos_camera[len(actual_pos_camera) - 1] = actual_pos_camera[len(actual_pos_camera)-1]*1000
+        actual_pos_camera_tmp = np.copy(actual_pos_camera)
         for i in range(len(actual_pos_camera)):
-            actual_pos_camera_tmp[i] = round(actual_pos_camera[i], 3)
+            actual_pos_camera_tmp[i] = round(actual_pos_camera[i], 1)
         
 
 
 
-        if(len(pointsCam) > 250):
+        if(len(pointsCam) > 100):
             switchonoff = False
-            pointsCamReal = np.delete(pointsCam,[0,0,0],0)
+            pointsCamReal = np.delete(pointsCam,[0,0,0,0],0)
             pointsRoboReal = np.delete(pointsRobo,[0,0,0],0)
             
-            dCam = pointsCamReal[:]
-            dRobo = pointsRoboReal[:]
+            dCam = np.copy(pointsCamReal)
+            dRobo = np.copy(pointsRoboReal)
             meanCam = np.mean(pointsCamReal,axis=0)
             meanRobo = np.mean(pointsRoboReal,axis=0)
             for i in range(len(pointsCamReal)):
-                for j in range(len(pointsCamReal[0])):
+                for j in range(len(pointsCamReal[0])-1):
                     dCam[i][j] = pointsCamReal[i][j] - meanCam[j] 
                     dRobo[i][j] = pointsRoboReal[i][j] - meanRobo[j]
-            l = 0    
-            v = len(pointsCamReal*4)
-            Mmat = np.zeros((len(pointsCamReal)*3, len(pointsCamReal) + 12))
-            for i in range(len(pointsCamReal)):
-                for j in range(len(pointsCamReal[0])):
-                    Mmat[i][l] = dCam[i][j]
-                    l=l+1
-                Mmat[i][l] = 1
                 
-            print(dCam)                    
-            print(Mmat)
+            s = 12
+            l = 0
+            b = 0
+            Mmat = np.zeros((len(pointsCamReal)*3, len(pointsCamReal) + 12))
+            
+            for i in range(len(pointsCamReal)):
+                for j in range(len(pointsCamReal[0])):     
+                    Mmat[b][j] = dCam[i][j]
+                    Mmat[b+1][j+4] = dCam[i][j]
+                    Mmat[b+2][j+8] = dCam[i][j]   
+                b = b+3
 
-
-
+            
+            for i in range(len(pointsCamReal)):
+                for v in range(len(pointsRoboReal[0])):
+                    Mmat[l+v][s] = dRobo[i][v]
+                l=l+3
+                s=s+1
+             
+            U1, S1, V1 = np.linalg.svd(Mmat)
+            V1_end = V1[len(V1)-1][0:12]
+            Pmat = np.reshape(V1_end,(3,4))
+            rotGen = Pmat[0:3,0:3]
+            
+        #print(round(pointsCam[len(pointsCam) - 1][2], 3))
         #print(actual_pos_camera)
         if(switchonoff == True):
-            if(actual_pos_camera_tmp[0] != pointsCam[len(pointsCam) - 1][0] or actual_pos_camera_tmp[1] != pointsCam[len(pointsCam) - 1][1] or actual_pos_camera_tmp[2] != pointsCam[len(pointsCam) - 1][2]):
+            if(actual_pos_camera_tmp[0] != round(pointsCam[len(pointsCam) - 1][0],1) or actual_pos_camera_tmp[1] != round(pointsCam[len(pointsCam) - 1][1],1) or actual_pos_camera_tmp[2] != round(pointsCam[len(pointsCam) - 1][2],1)):
                 pointsCam = np.vstack([pointsCam, actual_pos_camera])
                 pointsRobo = np.vstack([pointsRobo, actual_position])
 
@@ -465,9 +486,9 @@ class Robot(threading.Thread):
         
 
         print("cam", len(pointsCam))
-        return pointsCam
+        return rotGen
 
-    def impedance_control(self, desired_pose):
+    def impedance_control(self, desired_pose, rotGen):
         c = 80
         k = 100
         global pointsCam
@@ -482,13 +503,12 @@ class Robot(threading.Thread):
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
 
-        rotGen = np.array([[0.0251,    0.0182,   -0.0435],   [0.0478,   -0.0041,    0.0222], [0.0048,   -0.0523,   -0.0207]])
 
 
         desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
         actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
 
-
+        
         err = (desired_pos_camera  - actual_pos_camera)
         #error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
         error_pos_camera = np.matmul(rotGen , err)
@@ -514,7 +534,7 @@ class Robot(threading.Thread):
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(error)
        
-
+        #print(error)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
@@ -526,6 +546,69 @@ class Robot(threading.Thread):
         
         return [control_law, Tmatrix2, Tmatrix4]
         
+
+
+
+    def trajGenPoints(self, desired_pose, count):
+        c = 1
+        k = 0.4
+        x = 0
+        y = 1
+        z = 2
+        threshhold = 0.1
+        global trajCount
+        
+
+        self.mode = 'impedance controller'
+        quaternion = self.getTaskQuaternion()
+        actual_position = self.getTaskPosi()
+        positions = np.array([[0.82486, -0.51018, 0.21066], [0.82738, -0.54933, 0.65417], [0.94009, 0.29343, 0.66002], [1.02991, 0.23619, 0.25965], [ 0.62244, 0.63766, 0.33269], [0.59919, 0.70732, 0.76191], [-0.31424, 0.83937, 0.7834], [-0.34466, 0.87406, 0.26547], [-0.8256, 0.45144, 0.29477], [-0.87887, 0.41303, 0.78414], [-0.95871, -0.22587, 0.75526], [-0.86459, -0.41394, 0.33856], [-0.76049, -0.74522, 0.50626], [-0.53952, -0.83571, 0.22054], [-0.5795, -0.7196, 0.64038], [0.12494, -0.92563, 0.82685], [0.13152, -0.47089, 0.28201], [-0.23391, -0.43449, 0.52768], [-0.38107, 0.31347, 0.38621], [0.33293, 0.3641, 0.38627], [0.35508, -0.34246, 0.38626]])
+
+
+        quats = np.array([[-0.38292308,  0.45933626, -0.59887538,  0.53266161], [-0.40914157,  0.51389096, -0.54640928,  0.51957305],  [-0.4826565,   0.41776057, -0.39745305,  0.65920397], [-0.49307207,  0.50383661, -0.44756228,  0.55019688],  [-0.6718397,   0.10352994, -0.05911462,  0.73103928],  [-0.68133928,  0.09291008, -0.03919293,  0.72498856], [-0.63853426, -0.05921477,  0.20528296,  0.73934195], [-0.72144138, -0.10371669,  0.15037521,  0.66794647], [-0.53357887, -0.34190591,  0.49526981,  0.59422366], [-0.55541995, -0.4360819,   0.49133063,  0.50983867], [-0.46665292, -0.51137324,  0.56836963,  0.44462167], [-0.33972754, -0.59958032,  0.65153409,  0.31716237], [-0.18740591, -0.67400559,  0.69192061,  0.17844149],  [-0.10934784, -0.70206126,  0.68978216,  0.13911727], [-0.14582507, -0.61320037,  0.77455579,  0.05276061],[0.5681533,  -0.40237072,  0.33911757,  0.6326918 ], [-0.67774699,  0.01613773,  0.48899118,  0.54889545], [-0.00365793,  0.67665133,  0.7345087,   0.05124996], [0.32931651, 0.62052238, 0.40866113, 0.58266516], [ 0.67676412,  0.18838271, -0.14129164,  0.69752344], [ 0.60708547, -0.35347507, -0.5982922,   0.38542062]])
+        
+        
+
+        print(quaternion)
+
+        desired_position_base = positions[count]
+        desired_quaternion = quats[count]
+        error_position = desired_position_base - actual_position
+        # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
+        # could be seen as "adding" two rotations
+        # multiplying the desired quaternion with the inverse of the current quaternion gives the error, 
+        # could be seen as the "difference" between them
+
+        error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
+
+        
+        error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
+        """
+        if(abs(error[0]) > 0.5 or abs(error[1]) > 0.5 or abs(error[2]) > 0.5):
+            k = 0.05
+        if(abs(error[0]) < 0.3 and abs(error[1]) < 0.3 and abs(error[2]) < 0.3):
+            k = 0.2
+        """
+        #print(error)
+        if(trajCount > 15):
+            k = 0.25
+            x = 3
+            y = 4
+            z = 5
+        if(abs(error[x]) < threshhold and abs(error[y]) < threshhold and abs(error[z]) < threshhold):
+            trajCount = trajCount + 1
+        if(trajCount == len(positions)-1):
+            trajCount = 0
+        #control_law = kp*error + measured_force - kd*velocity
+        #control_law = kp*error - kd*velocity
+        #control_law = kp*error
+        #control_law = k/c*error
+	#print measured_force
+        control_law = k*error 
+        #control_law = control_law *testSelectionVector
+        
+    
+        return control_law
     # Uses only the position to control and does not involve forces. 
     # The robot returns to a fixed pose and can't be moved away by applying forces
     def pose_control(self, desired_pose, kp = 5): 
@@ -625,9 +708,9 @@ class Robot(threading.Thread):
 #######################################
 
     def findPosition(self):
-	roll = 1.5155    
-        pitch = -0.3226
-        yaw = 0.1297
+	roll = -0.1147
+        pitch = 0.1459
+        yaw = -2.5892
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -641,25 +724,10 @@ class Robot(threading.Thread):
 	#return newQut
 
     def goalPosition(self, position, quaternion):
-	#position = np.array([-0.17239, -0.38559, 0.46098])
-        #quaternion = np.array([0.68450141, -0.07245186,  0.15660954,  0.70829514])
-        #######################################
-	# FIRST EXERCISE
-	#######################################
-	position = np.array([-0.15792, -0.35975, 0.4525])
-        quaternion = np.array([ 0.6757655,  -0.00147379,  0.00949065,  0.7370541])
-	#######################################
-	# SECOND EXERCISE
-	#######################################
-	#position = np.array([-0.15651, -0.69471, 0.0553])
-        #quaternion = np.array([ 0.67570833, -0.01028819,  0.01689194,  0.7369037])
-	#position = np.array([-0.20673, -0.61667, 0.14893])
-        #quaternion = np.array([0.68880977, -0.04668559, -0.01346968,  0.72331191])
-	#######################################
-	# Third EXERCISE
-	#######################################
-	#position = np.array([-0.07609, -0.47965, -0.01873])
-        #quaternion = np.array([0.67242794, 0.06324287, 0.06463054, 0.7346182])
+        ############ 1st point ###################
+	position = np.array([0.5, -1.05908, 0.76039])
+        quaternion = np.array([ 0.05793482,  0.64728254, -0.64398721,  0.40366984])
+        
 	return position, quaternion
 #######################################
 ############ UR FUNCTIONS #############
@@ -964,7 +1032,7 @@ class Robot(threading.Thread):
 
 
 
-	
+	isCalibrated = False
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
         position, quaternion = self.goalPosition(position,quaternion)
@@ -1000,35 +1068,47 @@ class Robot(threading.Thread):
 
             pose = start_pose
             global atHome
-            atHome = self.proximityCheck(start_pose, 0.03)
+            #atHome = self.proximityCheck(start_pose, 0.03)
             #print(run_robot)
             #print(atHome)
-
+            global rotGen
 
 	    #######################################
             ############ MAIN  ####################
-            ####################################### 
-	    controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose)
+            #######################################
+            #self.findPosition()
+            #if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
+	    controller = self.trajGenPoints(pose, trajCount)
+                #rotGen = self.calibration(pointsCam, pointsRobo, pose)
+            
+            #if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
+            #    controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
+            
+            #print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
-	    #self.findPosition()
-            self.calibration(pointsCam, pointsRobo, pose)
+	    
+
+
+
+            # Future recom.     False/True key, "have you calibrated" if true then self.q_dot(dq_value)
+            
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
-	    #print dq_value
-            #self.q_dot(dq_value)
+	    #if(rotGen[0][0] != 0):
+            self.q_dot(dq_value)
 
 
 
             #######################################
             ############ Plots  ###################
             ####################################### 
-	    self.pub_x.publish(Tmatrix2[0][3])
-            self.pub_y.publish(Tmatrix2[1][3])
-            self.pub_z.publish(Tmatrix2[2][3])
-            self.pub_xd.publish(Tmatrix4[0][3])
-            self.pub_yd.publish(Tmatrix4[1][3])
-            self.pub_zd.publish(Tmatrix4[2][3])
+	    #self.pub_x.publish(Tmatrix2[0][3])
+            #self.pub_y.publish(Tmatrix2[1][3])
+            #self.pub_z.publish(Tmatrix2[2][3])
+            #self.pub_xd.publish(Tmatrix4[0][3])
+            #self.pub_yd.publish(Tmatrix4[1][3])
+            #self.pub_zd.publish(Tmatrix4[2][3])
             
              
 
