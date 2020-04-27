@@ -431,12 +431,12 @@ class Robot(threading.Thread):
         actual_pos_camera[len(actual_pos_camera) - 1] = actual_pos_camera[len(actual_pos_camera)-1]*1000
         actual_pos_camera_tmp = np.copy(actual_pos_camera)
         for i in range(len(actual_pos_camera)):
-            actual_pos_camera_tmp[i] = round(actual_pos_camera[i], 1)
+            actual_pos_camera_tmp[i] = round(actual_pos_camera[i], 2)
         
 
 
 
-        if(len(pointsCam) > 100):
+        if(len(pointsCam) > 300):
             switchonoff = False
             pointsCamReal = np.delete(pointsCam,[0,0,0,0],0)
             pointsRoboReal = np.delete(pointsRobo,[0,0,0],0)
@@ -477,7 +477,7 @@ class Robot(threading.Thread):
         #print(round(pointsCam[len(pointsCam) - 1][2], 3))
         #print(actual_pos_camera)
         if(switchonoff == True):
-            if(actual_pos_camera_tmp[0] != round(pointsCam[len(pointsCam) - 1][0],1) or actual_pos_camera_tmp[1] != round(pointsCam[len(pointsCam) - 1][1],1) or actual_pos_camera_tmp[2] != round(pointsCam[len(pointsCam) - 1][2],1)):
+            if(actual_pos_camera_tmp[0] != round(pointsCam[len(pointsCam) - 1][0],2) or actual_pos_camera_tmp[1] != round(pointsCam[len(pointsCam) - 1][1],2) or actual_pos_camera_tmp[2] != round(pointsCam[len(pointsCam) - 1][2],2)):
                 pointsCam = np.vstack([pointsCam, actual_pos_camera])
                 pointsRobo = np.vstack([pointsRobo, actual_position])
 
@@ -486,11 +486,11 @@ class Robot(threading.Thread):
         
 
         print("cam", len(pointsCam))
+        rotGen = rotGen*-1
         return rotGen
 
     def impedance_control(self, desired_pose, rotGen):
-        c = 80
-        k = 100
+        k = 3
         global pointsCam
         global pointsRobo
         self.mode = 'impedance controller'
@@ -540,7 +540,7 @@ class Robot(threading.Thread):
         #control_law = kp*error
         #control_law = k/c*error
 	#print measured_force
-        control_law = k/c*error 
+        control_law = k*error 
         #control_law = control_law *testSelectionVector
         
         
@@ -551,7 +551,7 @@ class Robot(threading.Thread):
 
     def trajGenPoints(self, desired_pose, count):
         c = 1
-        k = 0.4
+        k = 0.5
         x = 0
         y = 1
         z = 2
@@ -569,8 +569,6 @@ class Robot(threading.Thread):
         
         
 
-        print(quaternion)
-
         desired_position_base = positions[count]
         desired_quaternion = quats[count]
         error_position = desired_position_base - actual_position
@@ -583,15 +581,9 @@ class Robot(threading.Thread):
 
         
         error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
-        """
-        if(abs(error[0]) > 0.5 or abs(error[1]) > 0.5 or abs(error[2]) > 0.5):
-            k = 0.05
-        if(abs(error[0]) < 0.3 and abs(error[1]) < 0.3 and abs(error[2]) < 0.3):
-            k = 0.2
-        """
+
         #print(error)
         if(trajCount > 15):
-            k = 0.25
             x = 3
             y = 4
             z = 5
@@ -708,9 +700,9 @@ class Robot(threading.Thread):
 #######################################
 
     def findPosition(self):
-	roll = -0.1147
-        pitch = 0.1459
-        yaw = -2.5892
+	roll = 0.1158
+        pitch = 0.266
+        yaw = -2.296
 
         rospy.logwarn("ROLL %f",roll)
         rospy.logwarn("PITCH %f", pitch)
@@ -1077,14 +1069,15 @@ class Robot(threading.Thread):
             ############ MAIN  ####################
             #######################################
             #self.findPosition()
-            #if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
-	    controller = self.trajGenPoints(pose, trajCount)
-                #rotGen = self.calibration(pointsCam, pointsRobo, pose)
+            if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
+	        controller = self.trajGenPoints(pose, trajCount)
+                rotGen = self.calibration(pointsCam, pointsRobo, pose)
             
-            #if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
-            #    controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
             
-            #print(controller)
+            if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
+                controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
+            
+            print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
 	    
