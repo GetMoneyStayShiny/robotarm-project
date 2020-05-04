@@ -436,7 +436,7 @@ class Robot(threading.Thread):
 
 
 
-        if(len(pointsCam) > 300):
+        if(len(pointsCam) > 400):
             switchonoff = False
             pointsCamReal = np.delete(pointsCam,[0,0,0,0],0)
             pointsRoboReal = np.delete(pointsRobo,[0,0,0],0)
@@ -772,7 +772,7 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 5, time = 0.05):
+    def q_dot(self, dq_value, acceleration = 3, time = 0.05):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
@@ -1028,7 +1028,9 @@ class Robot(threading.Thread):
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
         position, quaternion = self.goalPosition(position,quaternion)
-	
+	prev_error_0 = 1000
+        prev_error_1 = 1000
+        prev_error_2 = 1000
         start_pose = np.array([position, quaternion])
         while (not rospy.is_shutdown()): 
 	
@@ -1069,6 +1071,7 @@ class Robot(threading.Thread):
             ############ MAIN  ####################
             #######################################
             #self.findPosition()
+            
             if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
 	        controller = self.trajGenPoints(pose, trajCount)
                 rotGen = self.calibration(pointsCam, pointsRobo, pose)
@@ -1077,6 +1080,18 @@ class Robot(threading.Thread):
             if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
                 controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
             
+                if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and abs(round(controller[3],4)) > prev_error_3 and abs(round(controller[4],4)) > prev_error_4 and abs(round(controller[5],4)) > prev_error_5 ):
+                    if(isCalibrated == False):
+                        rotGen = rotGen*-1
+                        isCalibrated = True
+                        print("##################################################")
+                prev_error_0 = abs(round(controller[0],4))
+                prev_error_1 = abs(round(controller[1],4))
+                prev_error_2 = abs(round(controller[2],4))
+                prev_error_3 = abs(round(controller[3],4))
+                prev_error_4 = abs(round(controller[4],4))
+                prev_error_5 = abs(round(controller[5],4))
+               
             print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
@@ -1088,7 +1103,7 @@ class Robot(threading.Thread):
             
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
-	    #if(rotGen[0][0] != 0):
+	    
             self.q_dot(dq_value)
 
 
