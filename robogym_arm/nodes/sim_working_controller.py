@@ -365,8 +365,8 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
-        #self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
+        #self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
         rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
@@ -520,33 +520,24 @@ class Robot(threading.Thread):
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
         
-        PointerTmatrix = np.array([[-0.500604, -0.865676, -0.000642, 12.067809], [0.865676, -0.500604, 0.000444, -21.939008], [-0.000714, -0.000329, 1.000000, -2.537459], [ 0.0, 0.0, 0.0, 1.0]])
-
-
+        
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
-        Tmatrix9 = self.cameraData9
 
-        goal_marker = Tmatrix2
-        end_eff_marker = Tmatrix4
-        calibration_marker = Tmatrix9
-        
-        #print(goal_marker)
-        desired_pos_camera = goal_marker[0:3,3:4].flatten()/1000
-        actual_pos_camera = end_eff_marker[0:3,3:4].flatten()/1000
 
-        ############### Calibration camera ##########################
-        
-        rotMC = end_eff_marker[0:3, 0:3]
+
+        desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
+        actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
+
+     
+
+        rotMC = Tmatrix2[0:3, 0:3]
         rotBE = tf.transformations.quaternion_matrix(quaternion)[0:3, 0:3]
         rotEM = np.matmul(np.matmul(np.linalg.inv(rotMC),rotGen), np.linalg.inv(rotBE))
         rotGen2 = np.matmul(np.matmul(rotMC, rotEM), rotBE)
+        #print("rotGen2", rotGen2)
+        #print(rotGen)
         
-        ############### Calibration tool ##########################
-        semi = np.matmul(calibration_marker, PointerTmatrix)
-        Calib_pointer = np.matmul(np.linalg.inv(end_eff_marker), np.matmul(calibration_marker, PointerTmatrix)) 
-        print(Calib_pointer)
-        #print(Calib_pointer)
         err = (desired_pos_camera  - actual_pos_camera)
         #error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
         error_pos_camera = np.matmul(rotGen2 , err)
@@ -558,8 +549,8 @@ class Robot(threading.Thread):
         # could be seen as the "difference" between them
         #sameCoord = np.matmul(rotBC4x4,Tmatrix4)
 
-        quaternions_goal = tf.transformations.quaternion_from_matrix(goal_marker)
-        quaternions_endeffector = tf.transformations.quaternion_from_matrix(end_eff_marker)
+        quaternions_goal = tf.transformations.quaternion_from_matrix(Tmatrix4)
+        quaternions_endeffector = tf.transformations.quaternion_from_matrix(Tmatrix2)
 
         #error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
         error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
@@ -1117,13 +1108,13 @@ class Robot(threading.Thread):
             #rotGen = np.array([[0.03199492,  0.02000003, -0.03867585], [0.04451686, -0.01213776,  0.03314018], [ 0.00633342, -0.05154498, -0.02347246]])
 
 
-            
-            if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
-                rotGen = self.calibration(pointsCam, pointsRobo, pose)
+            controller = self.trajGenPoints(pose, trajCount)
+            #if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
+            #    rotGen = self.calibration(pointsCam, pointsRobo, pose)
             
             #print(rotGen)
      
-            controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
+            #controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
             """
             if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and abs(round(controller[3],4)) > prev_error_3 and abs(round(controller[4],4)) > prev_error_4 and abs(round(controller[5],4)) > prev_error_5 ):
                     if(isCalibrated == False):
@@ -1136,7 +1127,7 @@ class Robot(threading.Thread):
             prev_error_4 = abs(round(controller[4],4))
             prev_error_5 = abs(round(controller[5],4))
             """ 
-            print(controller)
+            #print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
 	    

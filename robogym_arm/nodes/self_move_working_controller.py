@@ -520,33 +520,24 @@ class Robot(threading.Thread):
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
         
-        PointerTmatrix = np.array([[-0.500604, -0.865676, -0.000642, 12.067809], [0.865676, -0.500604, 0.000444, -21.939008], [-0.000714, -0.000329, 1.000000, -2.537459], [ 0.0, 0.0, 0.0, 1.0]])
-
-
+        
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
-        Tmatrix9 = self.cameraData9
 
-        goal_marker = Tmatrix2
-        end_eff_marker = Tmatrix4
-        calibration_marker = Tmatrix9
-        
-        #print(goal_marker)
-        desired_pos_camera = goal_marker[0:3,3:4].flatten()/1000
-        actual_pos_camera = end_eff_marker[0:3,3:4].flatten()/1000
 
-        ############### Calibration camera ##########################
-        
-        rotMC = end_eff_marker[0:3, 0:3]
+
+        desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
+        actual_pos_camera = Tmatrix2[0:3,3:4].flatten()/1000
+
+     
+
+        rotMC = Tmatrix2[0:3, 0:3]
         rotBE = tf.transformations.quaternion_matrix(quaternion)[0:3, 0:3]
         rotEM = np.matmul(np.matmul(np.linalg.inv(rotMC),rotGen), np.linalg.inv(rotBE))
         rotGen2 = np.matmul(np.matmul(rotMC, rotEM), rotBE)
+        #print("rotGen2", rotGen2)
+        #print(rotGen)
         
-        ############### Calibration tool ##########################
-        semi = np.matmul(calibration_marker, PointerTmatrix)
-        Calib_pointer = np.matmul(np.linalg.inv(end_eff_marker), np.matmul(calibration_marker, PointerTmatrix)) 
-        print(Calib_pointer)
-        #print(Calib_pointer)
         err = (desired_pos_camera  - actual_pos_camera)
         #error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
         error_pos_camera = np.matmul(rotGen2 , err)
@@ -558,8 +549,8 @@ class Robot(threading.Thread):
         # could be seen as the "difference" between them
         #sameCoord = np.matmul(rotBC4x4,Tmatrix4)
 
-        quaternions_goal = tf.transformations.quaternion_from_matrix(goal_marker)
-        quaternions_endeffector = tf.transformations.quaternion_from_matrix(end_eff_marker)
+        quaternions_goal = tf.transformations.quaternion_from_matrix(Tmatrix4)
+        quaternions_endeffector = tf.transformations.quaternion_from_matrix(Tmatrix2)
 
         #error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
         error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
