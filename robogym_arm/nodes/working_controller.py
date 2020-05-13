@@ -52,7 +52,11 @@ red  = 30
 green = 35
 blue = 191
 
-
+#calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
+calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
+checkrow1 = 0.25
+checkrow2 = 0.25
+checkrow3 = 0.25
 pointsCam = np.array([[0,0,0, 0]])
 pointsRobo = np.array([[0,0,0]])
 rotGen = np.zeros((3,3))
@@ -425,8 +429,8 @@ class Robot(threading.Thread):
         roundVariable = 1
         #Mmat = np.array()
         switchonoff = True
-        desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
-        actual_pos_camera = Tmatrix2[0:4,3:4].flatten()/1000
+        #desired_pos_camera = Tmatrix4[0:3,3:4].flatten()/1000
+        actual_pos_camera = Tmatrix4[0:4,3:4].flatten()/1000
         
         global rotGen
         actual_pos_camera[len(actual_pos_camera) - 1] = actual_pos_camera[len(actual_pos_camera)-1]*1000
@@ -510,8 +514,8 @@ class Robot(threading.Thread):
         #rotGen = rotGen*-1
         return rotGen
 
-    def impedance_control(self, desired_pose, rotGen):
-        k = 5
+    def impedance_control(self, desired_pose, rotGen, calib_pointerTmatrix):
+        k = 2
         global pointsCam
         global pointsRobo
         self.mode = 'impedance controller'
@@ -526,11 +530,13 @@ class Robot(threading.Thread):
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
         Tmatrix9 = self.cameraData9
-
+         
         goal_marker = Tmatrix2
         end_eff_marker = Tmatrix4
+        
         calibration_marker = Tmatrix9
         
+        #pointTip = np.matmul(np.linalg.inv(end_eff_marker), np.matmul(calibration_marker, PointerTmatrix))
         #print(goal_marker)
         desired_pos_camera = goal_marker[0:3,3:4].flatten()/1000
         actual_pos_camera = end_eff_marker[0:3,3:4].flatten()/1000
@@ -540,17 +546,25 @@ class Robot(threading.Thread):
         rotMC = end_eff_marker[0:3, 0:3]
         rotBE = tf.transformations.quaternion_matrix(quaternion)[0:3, 0:3]
         rotEM = np.matmul(np.matmul(np.linalg.inv(rotMC),rotGen), np.linalg.inv(rotBE))
-        rotGen2 = np.matmul(np.matmul(rotMC, rotEM), rotBE)
-        
+
+        #rotGen2 = np.matmul(np.matmul(rotMC, rotEM), rotBE)
+        rotGen2 = rotGen
         ############### Calibration tool ##########################
-        semi = np.matmul(calibration_marker, PointerTmatrix)
-        Calib_pointer = np.matmul(np.linalg.inv(end_eff_marker), np.matmul(calibration_marker, PointerTmatrix)) 
-        print(Calib_pointer)
-        #print(Calib_pointer)
+        
+        
+        
+        if(np.mean(calib_pointerTmatrix) != 0):
+            rotTM = calib_pointerTmatrix[0:3, 0:3]
+        else:
+            rotTM = np.array([[1,0,0], [0,1,0], [0,0,1]])
+        
+        rotET = np.matmul(rotEM, np.linalg.inv(rotTM))
+        #rotGen2 = np.matmul(np.matmul(np.matmul(rotMC, rotTM), rotET), rotBE)
+        
         err = (desired_pos_camera  - actual_pos_camera)
         #error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
         error_pos_camera = np.matmul(rotGen2 , err)
-
+        #print(err)
         #error_position = desired_position_base - actual_position
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
         # could be seen as "adding" two rotations
@@ -559,8 +573,9 @@ class Robot(threading.Thread):
         #sameCoord = np.matmul(rotBC4x4,Tmatrix4)
 
         quaternions_goal = tf.transformations.quaternion_from_matrix(goal_marker)
-        quaternions_endeffector = tf.transformations.quaternion_from_matrix(end_eff_marker)
 
+        quaternions_endeffector = tf.transformations.quaternion_from_matrix(end_eff_marker)
+       
         #error_angle = tf.transformations.quaternion_multiply(desired_quaternion, tf.transformations.quaternion_inverse(quaternion))
         error_angle = tf.transformations.quaternion_multiply(quaternions_goal, tf.transformations.quaternion_inverse(quaternions_endeffector))
 
@@ -570,7 +585,7 @@ class Robot(threading.Thread):
 
     
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
-        #print(error)
+        #print(end_eff_marker)
        
         #print(error)
         #control_law = kp*error + measured_force - kd*velocity
@@ -582,10 +597,24 @@ class Robot(threading.Thread):
         #control_law = control_law *testSelectionVector
         
         
-        return [control_law, Tmatrix2, Tmatrix4]
+        return control_law
         
 
+    def tipToolCalibration(self, Tmatrix4, Tmatrix9):
+        global checkrow1, checkrow2, checkrow3, calib_pointerTmatrix
+        PointerTmatrix = np.array([[-0.500604, -0.865676, -0.000642, 12.067809], [0.865676, -0.500604, 0.000444, -21.939008], [-0.000714, -0.000329, 1.000000, -2.537459], [ 0.0, 0.0, 0.0, 1.0]])
+        
 
+        if(checkrow1 != np.mean(Tmatrix9[0]) and checkrow2 != np.mean(Tmatrix9[1]) and checkrow3 != np.mean(Tmatrix9[2])):
+            calib_pointerTmatrix = np.matmul(np.linalg.inv(Tmatrix4), np.matmul(Tmatrix9, PointerTmatrix))
+            print("hej") 
+        
+        checkrow1 = np.mean(Tmatrix9[0])
+        checkrow2 = np.mean(Tmatrix9[1])
+        checkrow3 = np.mean(Tmatrix9[2])
+       
+
+        return calib_pointerTmatrix
 
     def trajGenPoints(self, desired_pose, count):
         c = 1
@@ -729,9 +758,9 @@ class Robot(threading.Thread):
         d6 =  0.0922
    
         Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
-        lambdaa = 0.01
-        Jac_psudo = np.linalg.pinv(Jac)
-        #Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
+        lambdaa = 1
+        #Jac_psudo = np.linalg.pinv(Jac)
+        Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
 
         return Jac_psudo
 
@@ -1063,7 +1092,7 @@ class Robot(threading.Thread):
         #print Jac_psudo
 
 
-
+        calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
 	isCalibrated = False
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
@@ -1109,21 +1138,25 @@ class Robot(threading.Thread):
             #print(run_robot)
             #print(atHome)
             global rotGen
-
+            Tmatrix2 = self.cameraData2
+            Tmatrix4 = self.cameraData4
+            Tmatrix9 = self.cameraData9
+            #print("hej", Tmatrix4)
 	    #######################################
             ############ MAIN  ####################
             #######################################
             #self.findPosition()
-            #rotGen = np.array([[0.03199492,  0.02000003, -0.03867585], [0.04451686, -0.01213776,  0.03314018], [ 0.00633342, -0.05154498, -0.02347246]])
+            rotGen = np.array([[-0.06169417, -0.01718371,  0.04860565], [-0.04410895, -0.01919212, -0.06072051], [-0.01697913,  0.0886079,   0.02295004]])
 
-
-            
+            rotGen = rotGen*-1
+            calib_pointerTmatrix = np.array([[ 6.19008489e-01,  2.54122871e-02, -7.84978254e-01, -3.56724614e+00], [ 5.60232032e-01, -7.14755883e-01,  4.18637179e-01, -1.43194218e+02], [-5.50425649e-01, -6.98911775e-01, -4.56675621e-01, -1.51096093e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+            #calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
+            print(calib_pointerTmatrix)
             if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
                 rotGen = self.calibration(pointsCam, pointsRobo, pose)
             
             #print(rotGen)
-     
-            controller, Tmatrix2, Tmatrix4 = self.impedance_control(pose, rotGen)
+            controller = self.impedance_control(pose, rotGen, calib_pointerTmatrix)
             """
             if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and abs(round(controller[3],4)) > prev_error_3 and abs(round(controller[4],4)) > prev_error_4 and abs(round(controller[5],4)) > prev_error_5 ):
                     if(isCalibrated == False):
@@ -1136,7 +1169,7 @@ class Robot(threading.Thread):
             prev_error_4 = abs(round(controller[4],4))
             prev_error_5 = abs(round(controller[5],4))
             """ 
-            print(controller)
+            #print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
 	    
@@ -1148,6 +1181,7 @@ class Robot(threading.Thread):
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
 	    if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
+                #print(controller)
                 self.q_dot(dq_value)
 
 
