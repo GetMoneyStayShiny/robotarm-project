@@ -53,6 +53,7 @@ green = 35
 blue = 191
 
 #calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
+isReversed = False
 calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
 checkrow1 = 0.25
 checkrow2 = 0.25
@@ -438,6 +439,7 @@ class Robot(threading.Thread):
         for i in range(len(actual_pos_camera)):
             actual_pos_camera_tmp[i] = round(actual_pos_camera[i], roundVariable)
         
+        #print(Tmatrix4)
 
 
 
@@ -499,8 +501,7 @@ class Robot(threading.Thread):
             Pmat = np.reshape(V1_end,(3,4))
             rotGen = Pmat[0:3,0:3]
             #print("pmat", Pmat)
-        #print(round(pointsCam[len(pointsCam) - 1][2], 3))
-        #print(actual_pos_camera)
+        
         if(switchonoff == True):
             if(actual_pos_camera_tmp[0] != round(pointsCam[len(pointsCam) - 1][0],roundVariable) or actual_pos_camera_tmp[1] != round(pointsCam[len(pointsCam) - 1][1],roundVariable) or actual_pos_camera_tmp[2] != round(pointsCam[len(pointsCam) - 1][2],roundVariable)):
                 pointsCam = np.vstack([pointsCam, actual_pos_camera])
@@ -511,11 +512,11 @@ class Robot(threading.Thread):
         
 
         print("cam", len(pointsCam))
-        #rotGen = rotGen*-1
+
         return rotGen
 
     def impedance_control(self, desired_pose, rotGen, calib_pointerTmatrix):
-        k = 2
+        k = 1
         global pointsCam
         global pointsRobo
         self.mode = 'impedance controller'
@@ -524,35 +525,35 @@ class Robot(threading.Thread):
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
         
-        PointerTmatrix = np.array([[-0.500604, -0.865676, -0.000642, 12.067809], [0.865676, -0.500604, 0.000444, -21.939008], [-0.000714, -0.000329, 1.000000, -2.537459], [ 0.0, 0.0, 0.0, 1.0]])
-
 
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
         Tmatrix9 = self.cameraData9
-         
-        goal_marker = Tmatrix2
-        end_eff_marker = Tmatrix4
-        
+        rotFix = np.array([[1,0,0,0], [0,-1,0,0], [0,0,-1,0], [0,0,0,1]])
+
+        goal_marker = np.matmul(Tmatrix2, rotFix)
+        end_eff_marker = np.matmul(Tmatrix4, calib_pointerTmatrix)  
+        #goal_marker = Tmatrix2
+        #end_eff_marker = Tmatrix4
+
         calibration_marker = Tmatrix9
-        
-        #pointTip = np.matmul(np.linalg.inv(end_eff_marker), np.matmul(calibration_marker, PointerTmatrix))
-        #print(goal_marker)
+
+
         desired_pos_camera = goal_marker[0:3,3:4].flatten()/1000
         actual_pos_camera = end_eff_marker[0:3,3:4].flatten()/1000
-
+        
         ############### Calibration camera ##########################
         
         rotMC = end_eff_marker[0:3, 0:3]
         rotBE = tf.transformations.quaternion_matrix(quaternion)[0:3, 0:3]
         rotEM = np.matmul(np.matmul(np.linalg.inv(rotMC),rotGen), np.linalg.inv(rotBE))
 
-        #rotGen2 = np.matmul(np.matmul(rotMC, rotEM), rotBE)
-        rotGen2 = rotGen
+        rotGen2 = np.matmul(np.matmul(rotMC, rotEM), rotBE)
+        #rotGen2 = rotGen
         ############### Calibration tool ##########################
         
         
-        
+        """
         if(np.mean(calib_pointerTmatrix) != 0):
             rotTM = calib_pointerTmatrix[0:3, 0:3]
         else:
@@ -560,11 +561,12 @@ class Robot(threading.Thread):
         
         rotET = np.matmul(rotEM, np.linalg.inv(rotTM))
         #rotGen2 = np.matmul(np.matmul(np.matmul(rotMC, rotTM), rotET), rotBE)
-        
+        """
         err = (desired_pos_camera  - actual_pos_camera)
+        #print(actual_pos_camera)
         #error_pos_camera = np.matmul(rotBC, np.matmul(rotY , err))
         error_pos_camera = np.matmul(rotGen2 , err)
-        #print(err)
+       
         #error_position = desired_position_base - actual_position
         # multiplication of two quaternions gives the rotations of doing the two rotations consecutive, 
         # could be seen as "adding" two rotations
@@ -606,8 +608,10 @@ class Robot(threading.Thread):
         
 
         if(checkrow1 != np.mean(Tmatrix9[0]) and checkrow2 != np.mean(Tmatrix9[1]) and checkrow3 != np.mean(Tmatrix9[2])):
-            calib_pointerTmatrix = np.matmul(np.linalg.inv(Tmatrix4), np.matmul(Tmatrix9, PointerTmatrix))
-            print("hej") 
+            calibPointer = np.matmul(Tmatrix9, PointerTmatrix)
+            calib_pointerTmatrix = np.matmul(np.linalg.inv(Tmatrix4), calibPointer)
+            
+             
         
         checkrow1 = np.mean(Tmatrix9[0])
         checkrow2 = np.mean(Tmatrix9[1])
@@ -758,7 +762,7 @@ class Robot(threading.Thread):
         d6 =  0.0922
    
         Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
-        lambdaa = 1
+        lambdaa = 0.001
         #Jac_psudo = np.linalg.pinv(Jac)
         Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
 
@@ -1093,7 +1097,7 @@ class Robot(threading.Thread):
 
 
         calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
-	isCalibrated = False
+	
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
         position, quaternion = self.goalPosition(position,quaternion)
@@ -1138,6 +1142,7 @@ class Robot(threading.Thread):
             #print(run_robot)
             #print(atHome)
             global rotGen
+            global isReversed
             Tmatrix2 = self.cameraData2
             Tmatrix4 = self.cameraData4
             Tmatrix9 = self.cameraData9
@@ -1146,45 +1151,41 @@ class Robot(threading.Thread):
             ############ MAIN  ####################
             #######################################
             #self.findPosition()
-            rotGen = np.array([[-0.06169417, -0.01718371,  0.04860565], [-0.04410895, -0.01919212, -0.06072051], [-0.01697913,  0.0886079,   0.02295004]])
-
-            rotGen = rotGen*-1
-            calib_pointerTmatrix = np.array([[ 6.19008489e-01,  2.54122871e-02, -7.84978254e-01, -3.56724614e+00], [ 5.60232032e-01, -7.14755883e-01,  4.18637179e-01, -1.43194218e+02], [-5.50425649e-01, -6.98911775e-01, -4.56675621e-01, -1.51096093e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
-            #calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
-            print(calib_pointerTmatrix)
             if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
                 rotGen = self.calibration(pointsCam, pointsRobo, pose)
-            
-            #print(rotGen)
+                calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
+                print(rotGen)
+                print(calib_pointerTmatrix)
+                
             controller = self.impedance_control(pose, rotGen, calib_pointerTmatrix)
-            """
-            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and abs(round(controller[3],4)) > prev_error_3 and abs(round(controller[4],4)) > prev_error_4 and abs(round(controller[5],4)) > prev_error_5 ):
-                    if(isCalibrated == False):
-                        rotGen = rotGen*-1
-                        isCalibrated = True
-            prev_error_0 = abs(round(controller[0],4))
-            prev_error_1 = abs(round(controller[1],4))
-            prev_error_2 = abs(round(controller[2],4))
-            prev_error_3 = abs(round(controller[3],4))
-            prev_error_4 = abs(round(controller[4],4))
-            prev_error_5 = abs(round(controller[5],4))
-            """ 
+          
             #print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
-	    
-
-
 
             # Future recom.     False/True key, "have you calibrated" if true then self.q_dot(dq_value)
             
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
 	    if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
-                #print(controller)
+                print(controller)
+                #print(rotGen)
                 self.q_dot(dq_value)
 
 
+
+
+
+            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and abs(round(controller[3],4)) > prev_error_3 and abs(round(controller[4],4)) > prev_error_4 and abs(round(controller[5],4)) > prev_error_5):             
+                print("##################################################")
+                rotGen = rotGen*-1
+                       
+            prev_error_0 = abs(round(controller[0],4))
+            prev_error_1 = abs(round(controller[1],4))
+            prev_error_2 = abs(round(controller[2],4))
+            prev_error_3 = abs(round(controller[3],4))
+            prev_error_4 = abs(round(controller[4],4))
+            prev_error_5 = abs(round(controller[5],4))
 
 
             #######################################
