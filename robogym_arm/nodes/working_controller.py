@@ -70,8 +70,8 @@ onoff_light.set("red")
 #at_home_light = StringVar()
 #at_home_light.set("red")
 
-start_string = """
-Unlocks the robot. The robot is now movable.
+confirm_string = """
+Please verify that the controller follows your marker.
 """
 set_pos_string = """
 Press the button "Set height", then move the robot vertically 
@@ -93,13 +93,15 @@ Terminates the whole program. The interface will close and the
 robot will no longer receive any force input.
 """
 
-exercise_string = """
-Set yourself in a stable position with your feet facing towards the robot. 
-The vertical height of the handle should be between your shoulder and elbow. 
-Pull the handle with one hand in a controlled rowing motion back and forth
-and do not release the handle until you are finished with the exercise. 
-This exercise will mainly stimulate the back, biceps and core musculature. 
+explination_string = """
+This is the calibration verification Interface! \n 
+Please move the robot in the vision field of the camera in order to collect 3D points. We have estimated 100 points should be enough. After the calibration is complete and the robot calculates the position of the camera, you should verify that this works. Pick up the verification marker and move it around very close to the robots end effector, see if the marker follows you as inteded. IF so the calibration is complete! If for some reason the robot does not work as expected. Check the correct checkbox to redo the calibration. Each time the collected points counter will increase with 30 extra points!  
 """
+
+## Warning joints not to far left or right
+## Improve text
+
+
         
 class Interface(threading.Thread):
     def __init__(self, tk_root):
@@ -108,7 +110,7 @@ class Interface(threading.Thread):
         threading.Thread.__init__(self)
         self.start()
 
-        self.root.title("RobotGym")
+        self.root.title("Robo-assistant surgery: Calibration")
         frame=Frame(self.root)
         Grid.rowconfigure(self.root, 0, weight=1)
         Grid.columnconfigure(self.root, 0, weight=1)
@@ -124,45 +126,49 @@ class Interface(threading.Thread):
         for y in range(40):
             Grid.rowconfigure(frame, y, weight=1)
 
+        #Checkbox
 
-        #Unlock button
-        self.start_button = Button(frame, text="Unlock",command=self.starter)
-        self.start_button.grid(row=10, column=30,padx = 2, pady = 2, sticky=N+S+E+W)        
+        self.cali_done = Checkbutton(frame, text="Confirm 100 points",command=self.starter)
+        self.cali_done.grid(row=20, column = 20, padx = 2, pady = 2, sticky= N+S+E+W)
 
-        #Z-Position button
-        self.set_position_button = Button(frame, text="Set height", command = self.poition_set)
-        self.set_position_button.grid(row=12,column = 30, padx = 2, pady = 2, sticky= N+S+E+W)
+        self.toolcali_done = Checkbutton(frame, text="Confirm tool calibration",command=self.starter)
+        self.toolcali_done.grid(row=25, column = 20, padx = 4, pady = 4, sticky= N+S+E+W)
 
-        #Resistance button
-        self.get_weight = Button(frame, text = "Set resistance", command = self.getWeight)
-        self.get_weight.grid(row=14,column = 30, padx = 2, pady = 2, sticky= N+S+E+W)
+        #self.yes_button = Button(frame, text="Yes",command=self.poition_set)
+        #self.yes_button.grid(row=27, column=6,padx = 2, pady = 2, sticky=N+S+E+W)
 
-        #Lock button
-        self.stop_button = Button(frame, text="Lock",command=self.stop)
-        self.stop_button.grid(row=16, column=30,padx = 2, pady = 2, sticky=N+S+E+W)
 
-        #Unit label
-        self.slide_label = Label(frame, text= "Resistance (N/m)", font=("Helvetica", 12))
-        self.slide_label.grid(row=39, column = 30, sticky = E)   
+        #self.no_button = Button(frame, text="No",command=self.poition_set)
+        #self.no_button.grid(row=27, column=8,padx = 2, pady = 2, sticky=N+S+E+W)
+
+        self.reset = Button(frame, text = "Reset", command = self.reset)
+        self.reset.grid(row=40,column = 20, padx = 200, pady = 2, sticky= N+S+E+W)
+
+        self.stop_button = Button(frame, text="Cancel",command=self.stop)
+        self.stop_button.grid(row=40, column=40,padx = 2, pady = 2, sticky=N+S+E+W)
+
 
         #Slidebar
-        self.slideBar = Scale(frame, from_=125, to=25, length=400, width= 50, tickinterval=25)
-        self.slideBar.grid(row = 30, rowspan = 9, column = 30, sticky = W)
-        self.slideBar.set(50)     
-        
-        #Current resistance label
-        self.current_resistans = Label(frame, textvariable = str_res, font=("Helvetica",12))
-        self.current_resistans.grid(row = 26, rowspan=4, column = 30)
+        self.slideBar = Scale(frame, from_=1, to=10, length=200, width= 20, tickinterval=1)
+        self.slideBar.grid(row = 28, rowspan = 9, column = 10, sticky = S)
+        self.slideBar.set(5)
 
+
+        self.slideBarConfirm = Button(frame, text="Confirm speed",command=self.slideBarConfirm)
+        self.slideBarConfirm.grid(row=35, column=15,padx = 2, pady = 2, sticky=N+S+E+W)
+        #Checkbutton(master, text="male", variable=var1).grid(row=0, sticky=W)
+
+    
         #Text widget explaning interface
-        text_button = Text(frame, height=23, width=64)
+        """
+        text_button = Text(frame, height=5, width=30)
         text_button.tag_configure('bold_italics', font=('Arial', 12, 'bold', 'italic'))
         text_button.tag_configure('big', font=('Verdana', 12, 'bold'))
         text_button.tag_configure('color', foreground='#476042', font=('Tempus Sans ITC', 12, 'bold'))
-
-        text_button.insert(END,'Unlock', 'big')
-        text_button.insert(END, start_string)
-
+        
+        text_button.insert(END,'Confirm', 'big')
+        text_button.insert(END, confirm_string)
+        
         text_button.insert(END,'\nSet height', 'big')
         text_button.insert(END, set_pos_string)
 
@@ -174,35 +180,53 @@ class Interface(threading.Thread):
 
         text_button.insert(END,'\nShutdown', 'big')
         text_button.insert(END, s_down_string)
-
+        
         text_button.config(state=DISABLED)
-        text_button.grid(row=10, rowspan=22, column=50, columnspan = 10, padx=6, pady=6,sticky=N)
-
+        text_button.grid(row=21, rowspan=22, column=1, columnspan = 10, padx=6, pady=6,sticky=N)
+        """
         #Test widget explaning exercise
-        text_exercise = Text(frame, height=10, width=80)
+        text_exercise = Text(frame, height=10, width=90)
         text_exercise.tag_configure('bold_italics', font=('Arial', 12, 'bold', 'italic'))
         text_exercise.tag_configure('big', font=('Verdana', 12, 'bold'))
         text_exercise.tag_configure('color', foreground='#476042', font=('Tempus Sans ITC', 12, 'bold'))
 
         text_exercise.tag_bind('follow', '<1>', lambda e, t=text_exercise: t.insert(END, "Not now, maybe later!"))
 
-        text_exercise.insert(END,exercise_string)   
+        text_exercise.insert(END,explination_string)   
         text_exercise.config(state = DISABLED)
-        text_exercise.grid(row=10, rowspan=10, column=66, columnspan = 14,padx=6, pady = 6 ,sticky=N)
+        text_exercise.grid(row=10, rowspan=10, column=16, columnspan = 14,padx=6, pady = 6 ,sticky=N)
+        
+
         
         #Exercise image
-        text_image = Text(frame, height=25, width=80)   
+        text_image = Text(frame, height=20, width=80)   
 	# "gym_instructions.png"
-        org_img = Image.open("test.png")
-        res_img = org_img.resize((555,320),Image.ANTIALIAS)
+        org_img = Image.open("test.png") # IMAGE OF MARKER
+        res_img = org_img.resize((555,320), Image.ANTIALIAS)
 
         self.photo = ImageTk.PhotoImage(res_img)
-
+        
         text_image.insert(END,'\n')
         text_image.image_create(END, image=self.photo)
         text_image.config(state = DISABLED)
-        text_image.grid(row=18,rowspan=25, column=66,columnspan =18,sticky = N)
+        text_image.grid(row=10,rowspan=25, column=66,columnspan =18, sticky = N)
         
+
+
+        #Exercise image
+        text_image = Text(frame, height=20, width=80)   
+	# "gym_instructions.png"
+        org_img = Image.open("test2.png") # IMAGE OF MARKER
+        res_img = org_img.resize((555,320), Image.ANTIALIAS)
+
+        self.photo2 = ImageTk.PhotoImage(res_img)
+        
+        text_image.insert(END,'\n')
+        text_image.image_create(END, image=self.photo2)
+        text_image.config(state = DISABLED)
+        text_image.grid(row=30,rowspan=25, column=66,columnspan =18, sticky = N)
+
+        """
         #Force display label
         self.force = Label(frame, textvariable = forceVar, font=("Helvetica", 100), fg = "#%02x%02x%02x" % (red, green,blue), borderwidth=3, relief = "ridge")
         self.force.config(height=1, width=5)
@@ -215,7 +239,7 @@ class Interface(threading.Thread):
         #Shutdown button
         self.end_button = Button(frame, text="Shutdown", command=self.end)
         self.end_button.grid(row=39, column=79, padx = 8, pady = 2, sticky=N+S+E+W)
-
+        
         #ON/Off label 
         self.onoff = Label(frame, bg=onoff_light.get())
         self.onoff.config(height = 3, width=5)
@@ -224,7 +248,8 @@ class Interface(threading.Thread):
         self.onoff_status = Label(frame, text = "Robot active:")
         self.onoff.config(height = 3, width=5)
         self.onoff_status.grid(row = 18, column = 30, pady = 2, sticky = W)
-
+        """
+        
         '''
         #at home label 
         self.at_home = Label(frame, bg=at_home_light.get())
@@ -254,8 +279,8 @@ class Interface(threading.Thread):
     def guide_z_true(self):
         global guide_z
         guide_z = True
-
-    def getWeight(self):
+    
+    def slideBar(self):
         if(atHome):
             global resistance
             resistance = self.slideBar.get()
@@ -276,6 +301,25 @@ class Interface(threading.Thread):
             popup.grab_release()
         
         self.B1 = Button(popup, text="Done", command=popup_done).pack()
+
+    def slideBarConfirm(self):
+        global run_robot
+        run_robot=True
+        #onoff_light.set("green")
+        #self.onoff.config(bg=onoff_light.get())
+
+    def starter(self):
+        global run_robot
+        run_robot=True
+        #onoff_light.set("green")
+        #self.onoff.config(bg=onoff_light.get())
+        
+        def popup_done():
+            popup.destroy()
+            #self.root.deiconify()
+            popup.grab_release()
+        
+        self.B1 = Button(popup, text="Done", command=popup_done).pack()
         
         
         
@@ -283,9 +327,14 @@ class Interface(threading.Thread):
     def starter(self):
         global run_robot
         run_robot=True
-        onoff_light.set("green")
-        self.onoff.config(bg=onoff_light.get())
+        #onoff_light.set("green")
+        #self.onoff.config(bg=onoff_light.get())
 
+    def reset(self):
+        global run_robot
+        run_robot=True
+        #onoff_light.set("green")
+        #self.onoff.config(bg=onoff_light.get())
     def stop(self):
        
         if(atHome):
@@ -530,12 +579,14 @@ class Robot(threading.Thread):
         Tmatrix4 = self.cameraData4
         Tmatrix9 = self.cameraData9
         rotFix = np.array([[1,0,0,0], [0,-1,0,0], [0,0,-1,0], [0,0,0,1]])
-
+           
         goal_marker = np.matmul(Tmatrix2, rotFix)
+        if(np.mean(calib_pointerTmatrix) == 0):
+            calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
         end_eff_marker = np.matmul(Tmatrix4, calib_pointerTmatrix)  
         #goal_marker = Tmatrix2
         #end_eff_marker = Tmatrix4
-
+        
         calibration_marker = Tmatrix9
 
 
@@ -1094,8 +1145,8 @@ class Robot(threading.Thread):
 	
 
         #print Jac_psudo
-
-
+        global rotGen
+      
         calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
 	
 	position = np.array([0, 0, 0])
@@ -1141,7 +1192,7 @@ class Robot(threading.Thread):
             #atHome = self.proximityCheck(start_pose, 0.03)
             #print(run_robot)
             #print(atHome)
-            global rotGen
+            
             global isReversed
             Tmatrix2 = self.cameraData2
             Tmatrix4 = self.cameraData4
@@ -1151,14 +1202,18 @@ class Robot(threading.Thread):
             ############ MAIN  ####################
             #######################################
             #self.findPosition()
+
+            
+               
+            
             if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
                 rotGen = self.calibration(pointsCam, pointsRobo, pose)
                 calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
-                print(rotGen)
-                print(calib_pointerTmatrix)
+                #print("##############")
+                #print(calib_pointerTmatrix)
                 
             controller = self.impedance_control(pose, rotGen, calib_pointerTmatrix)
-          
+            #controller = self.trajGenPoints(pose, trajCount)
             #print(controller)
             Jac_psudo = self.jac_function()
 	    V_ref = np.transpose(controller)
@@ -1170,15 +1225,17 @@ class Robot(threading.Thread):
 	    if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
                 print(controller)
                 #print(rotGen)
-                self.q_dot(dq_value)
+                #self.q_dot(dq_value)
 
 
 
 
-
-            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and abs(round(controller[3],4)) > prev_error_3 and abs(round(controller[4],4)) > prev_error_4 and abs(round(controller[5],4)) > prev_error_5):             
-                print("##################################################")
-                rotGen = rotGen*-1
+            
+            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2):
+                if(isReversed == False):             
+                    print("##################################################")
+                    rotGen = rotGen*-1
+                    isReversed = True
                        
             prev_error_0 = abs(round(controller[0],4))
             prev_error_1 = abs(round(controller[1],4))
@@ -1186,7 +1243,7 @@ class Robot(threading.Thread):
             prev_error_3 = abs(round(controller[3],4))
             prev_error_4 = abs(round(controller[4],4))
             prev_error_5 = abs(round(controller[5],4))
-
+            
 
             #######################################
             ############ Plots  ###################
@@ -1218,13 +1275,13 @@ class Robot(threading.Thread):
 
 if __name__ == '__main__':
     try:
-        robot_thread = Robot()
-        robot_thread.setName("Robot Thread")
-        robot_thread.daemon = True
-        robot_thread.start()
+        #robot_thread = Robot()
+        #robot_thread.setName("Robot Thread")
+        #robot_thread.daemon = True
+        #robot_thread.start()
 
-        #gui_thread = Interface(root)
-        #gui_thread.setName("GUI Thread")
+        gui_thread = Interface(root)
+        gui_thread.setName("GUI Thread")
        
         root.mainloop()
          
