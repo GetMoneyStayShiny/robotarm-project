@@ -52,7 +52,8 @@ red  = 30
 green = 35
 blue = 191
 
-#calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
+
+isCalibrated = False
 isReversed = False
 calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
 checkrow1 = 0.25
@@ -62,7 +63,7 @@ pointsCam = np.array([[0,0,0, 0]])
 pointsRobo = np.array([[0,0,0]])
 rotGen = np.zeros((3,3))
 trajCount = 0
-
+speedK = 0
 
 onoff_light = StringVar()
 onoff_light.set("red")
@@ -95,8 +96,10 @@ robot will no longer receive any force input.
 
 explination_string = """
 This is the calibration verification Interface! \n 
-Please move the robot in the vision field of the camera in order to collect 3D points. We have estimated 100 points should be enough. After the calibration is complete and the robot calculates the position of the camera, you should verify that this works. Pick up the verification marker and move it around very close to the robots end effector, see if the marker follows you as inteded. IF so the calibration is complete! If for some reason the robot does not work as expected. Check the correct checkbox to redo the calibration. Each time the collected points counter will increase with 30 extra points!  
+Please take the calibration tool and calibrate the tip of the tool when the tool is correctly placed at the robot. Once placed correctly cover the viewing ray for the markers to save the current values. Comfirm the numbers you see above, The values for X, Y and Z should be approx. .... Adjust the calibration unit until the green field lights up.
 """
+#Please move the robot in the vision field of the camera in order to collect 3D points. We have estimated 100 points should be enough. After the calibration is complete and the robot calculates the position of the camera, you should verify that this works. Pick up the verification marker and move it around very close to the robots end effector, see if the marker follows you as inteded. IF so the calibration is complete! If for some reason the robot does not work as expected. Check the correct checkbox to redo the calibration. Each time the collected points counter will increase with 30 extra points!  
+
 
 ## Warning joints not to far left or right
 ## Improve text
@@ -128,18 +131,18 @@ class Interface(threading.Thread):
 
         #Checkbox
 
-        self.cali_done = Checkbutton(frame, text="Confirm 100 points",command=self.starter)
-        self.cali_done.grid(row=20, column = 20, padx = 2, pady = 2, sticky= N+S+E+W)
+        #self.cali_done = Checkbutton(frame, text="Confirm 100 points",command=self.cali_done)
+        #self.cali_done.grid(row=20, column = 20, padx = 2, pady = 2, sticky= N+S+E+W)
 
-        self.toolcali_done = Checkbutton(frame, text="Confirm tool calibration",command=self.starter)
-        self.toolcali_done.grid(row=25, column = 20, padx = 4, pady = 4, sticky= N+S+E+W)
+        #self.toolcali_done = Checkbutton(frame, text="Confirm tool calibration",command=self.starter)
+        #self.toolcali_done.grid(row=25, column = 20, padx = 4, pady = 4, sticky= N+S+E+W)
 
-        #self.yes_button = Button(frame, text="Yes",command=self.poition_set)
-        #self.yes_button.grid(row=27, column=6,padx = 2, pady = 2, sticky=N+S+E+W)
+        self.yes_button = Button(frame, text="Yes",command=self.yesButton)
+        self.yes_button.grid(row=27, column=6,padx = 2, pady = 2, sticky=N+S+E+W)
 
 
-        #self.no_button = Button(frame, text="No",command=self.poition_set)
-        #self.no_button.grid(row=27, column=8,padx = 2, pady = 2, sticky=N+S+E+W)
+        self.no_button = Button(frame, text="No",command=self.noButton)
+        self.no_button.grid(row=27, column=8,padx = 2, pady = 2, sticky=N+S+E+W)
 
         self.reset = Button(frame, text = "Reset", command = self.reset)
         self.reset.grid(row=40,column = 20, padx = 200, pady = 2, sticky= N+S+E+W)
@@ -147,18 +150,31 @@ class Interface(threading.Thread):
         self.stop_button = Button(frame, text="Cancel",command=self.stop)
         self.stop_button.grid(row=40, column=40,padx = 2, pady = 2, sticky=N+S+E+W)
 
-
-        #Slidebar
+        
+        #Slidebar1
         self.slideBar = Scale(frame, from_=1, to=10, length=200, width= 20, tickinterval=1)
-        self.slideBar.grid(row = 28, rowspan = 9, column = 10, sticky = S)
+        self.slideBar.grid(row = 28, rowspan = 9, column = 2, sticky = S)
         self.slideBar.set(5)
+        speedK = self.slideBar.get()
+        #global speedK
+
+        self.get_weight = Button(frame, text = "Set K", command = self.getWeight)
+        self.get_weight.grid(row=10,column = 2, padx = 2, pady = 2, sticky= N+S+E+W)
+        #self.slideBarConfirm = Button(frame, text="k1",command=self.slideBar1)
+        #self.slideBarConfirm.grid(row=35, column=15,padx = 2, pady = 2, sticky=N+S+E+W)
 
 
-        self.slideBarConfirm = Button(frame, text="Confirm speed",command=self.slideBarConfirm)
-        self.slideBarConfirm.grid(row=35, column=15,padx = 2, pady = 2, sticky=N+S+E+W)
+        #Slidebar2
+        #self.slideBar = Scale(frame, from_=1, to=10, length=200, width= 20, tickinterval=1)
+        #self.slideBar.grid(row = 28, rowspan = 9, column = 20, sticky = S)
+        #self.slideBar.set(1)
+
+
+        #self.slideBarConfirm = Button(frame, text="k2",command=self.slideBar2)
+        #self.slideBarConfirm.grid(row=35, column=25,padx = 2, pady = 2, sticky=N+S+E+W)
         #Checkbutton(master, text="male", variable=var1).grid(row=0, sticky=W)
 
-    
+        
         #Text widget explaning interface
         """
         text_button = Text(frame, height=5, width=30)
@@ -184,7 +200,7 @@ class Interface(threading.Thread):
         text_button.config(state=DISABLED)
         text_button.grid(row=21, rowspan=22, column=1, columnspan = 10, padx=6, pady=6,sticky=N)
         """
-        #Test widget explaning exercise
+        #Explain text
         text_exercise = Text(frame, height=10, width=90)
         text_exercise.tag_configure('bold_italics', font=('Arial', 12, 'bold', 'italic'))
         text_exercise.tag_configure('big', font=('Verdana', 12, 'bold'))
@@ -196,6 +212,19 @@ class Interface(threading.Thread):
         text_exercise.config(state = DISABLED)
         text_exercise.grid(row=10, rowspan=10, column=16, columnspan = 14,padx=6, pady = 6 ,sticky=N)
         
+
+
+
+
+
+        #Display numbers
+        self.txt_points = Label(frame, text = "Number of collected 3D points: ", font = ('Avenir Next', 13))
+        self.txt_points.grid(row=23, rowspan=1, column=0, columnspan = 2, padx=15, pady=2 ,sticky=N+W)
+        self.txt_pointsCollected = Label(frame, text = len(pointsCam), font = ('Avenir Next', 13))
+        self.txt_pointsCollected.grid(row=25, rowspan=1, column=0, columnspan = 2, padx=2, pady=2 ,sticky=N+W)
+        self.update_pointsCollected()
+
+
 
         
         #Exercise image
@@ -213,7 +242,7 @@ class Interface(threading.Thread):
         
 
 
-        #Exercise image
+        """#image2
         text_image = Text(frame, height=20, width=80)   
 	# "gym_instructions.png"
         org_img = Image.open("test2.png") # IMAGE OF MARKER
@@ -225,7 +254,7 @@ class Interface(threading.Thread):
         text_image.image_create(END, image=self.photo2)
         text_image.config(state = DISABLED)
         text_image.grid(row=30,rowspan=25, column=66,columnspan =18, sticky = N)
-
+        """ 
         """
         #Force display label
         self.force = Label(frame, textvariable = forceVar, font=("Helvetica", 100), fg = "#%02x%02x%02x" % (red, green,blue), borderwidth=3, relief = "ridge")
@@ -271,7 +300,11 @@ class Interface(threading.Thread):
         self.root.geometry( str(w) + 'x' + str(h))
         #self.root.geometry( '500x300')      
         
-        
+    def update_pointsCollected(self):
+        self.txt_pointsCollected.configure(text = len(pointsCam))
+        self.txt_pointsCollected.after(100, self.update_pointsCollected)
+        #print(len(pointsCam)) # remove when verified that it works
+
     def guide_z_false(self):
         global guide_z
         guide_z = False
@@ -281,9 +314,21 @@ class Interface(threading.Thread):
         guide_z = True
     
     def slideBar(self):
+        global k_var
+        k_var = self.slideBar.get()
+        #print(k_var)
+       
+
+    def slideBarConfirm(self):										
+        global run_robot
+        run_robot=True
+        #onoff_light.set("green")
+        #self.onoff.config(bg=onoff_light.get())
+   
+    def getWeight(self):
         if(atHome):
-            global resistance
-            resistance = self.slideBar.get()
+            global speedK
+            speedK = self.slideBar.get()
         else:
             popup = Toplevel()
             #self.root.withdraw()
@@ -294,23 +339,9 @@ class Interface(threading.Thread):
             #popup.geometry("+d%")
             explanation = """Wait for the robot to return to its home position and try again."""
             popw2 = Label(popup, justify=LEFT, padx=200, pady=25, height=3,width=15, text=explanation).pack()
-        
-        def popup_done():
-            popup.destroy()
-            #self.root.deiconify()
-            popup.grab_release()
-        
-        self.B1 = Button(popup, text="Done", command=popup_done).pack()
-
-    def slideBarConfirm(self):
-        global run_robot
-        run_robot=True
-        #onoff_light.set("green")
-        #self.onoff.config(bg=onoff_light.get())
-
-    def starter(self):
-        global run_robot
-        run_robot=True
+    def cali_done(self):
+        global isCalibrated
+        isCalibrated=True
         #onoff_light.set("green")
         #self.onoff.config(bg=onoff_light.get())
         
@@ -321,8 +352,31 @@ class Interface(threading.Thread):
         
         self.B1 = Button(popup, text="Done", command=popup_done).pack()
         
+      
+    def yesButton(self):
+        global isCalibrated
+        isCalibrated=True
+        """
+        popup = Toplevel()
+	    #self.root.withdraw()
+	popup.grab_set()
+	popup.title("Confirm calibration with the expected values")
+	popup.geometry(str(w/2) + 'x' + str(h/10))
+	popup.geometry("+300+400")
+	    #popup.geometry("+d%")
+	explanation = "gay"
+	popw2 = Label(popup, justify=LEFT, padx=200, pady=25, height=3,width=15, text=explanation).pack()
         
+        def popup_done():
+            popup.destroy()
+            #self.root.deiconify()
+            popup.grab_release()
         
+        self.B1 = Button(popup, text="Done", command=popup_done).pack()
+        """
+    def noButton(self):
+        global isCalibrated
+        isCalibrated=False
     
     def starter(self):
         global run_robot
@@ -430,18 +484,29 @@ class Robot(threading.Thread):
         #rospy.Subscriber("/optoforce_node/wrench_HEXHA094", WrenchStamped, self.wrenchSensorCallback)
         self.pub_reset = rospy.Publisher('/ethdaq_zero', Bool, queue_size=1)
         #Publishers for the position
-        self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1)
-        self.pub_y = rospy.Publisher('/positiony', Float32, queue_size=1)
-        self.pub_z = rospy.Publisher('/positionz', Float32, queue_size=1)
-        self.pub_xd = rospy.Publisher('/positionxd', Float32, queue_size=1)
-        self.pub_yd = rospy.Publisher('/positionyd', Float32, queue_size=1)
-        self.pub_zd = rospy.Publisher('/positionzd', Float32, queue_size=1)
+        self.pub_x = rospy.Publisher('/goal_x', Float32, queue_size=1)
+        self.pub_x2 = rospy.Publisher('/goal_x2', Float32, queue_size=1)
+        self.pub_y = rospy.Publisher('/goal_y', Float32, queue_size=1)
+        self.pub_z = rospy.Publisher('/goal_z', Float32, queue_size=1)
+        self.pub_xd = rospy.Publisher('/position_x', Float32, queue_size=1)
+        self.pub_yd = rospy.Publisher('/position_y', Float32, queue_size=1)
+        self.pub_zd = rospy.Publisher('/position_z', Float32, queue_size=1)
+        self.pub_xb = rospy.Publisher('/camera_pos_x', Float32, queue_size=1)
+        self.pub_yb = rospy.Publisher('/camera_pos_y', Float32, queue_size=1)
+        self.pub_zb = rospy.Publisher('/camera_pos_z', Float32, queue_size=1)
+        self.pub_e_x = rospy.Publisher('/error_x', Float32, queue_size=1)
+        self.pub_e_y = rospy.Publisher('/error_y', Float32, queue_size=1)
+        self.pub_e_z = rospy.Publisher('/error_z', Float32, queue_size=1)
+        self.pub_e_q1 = rospy.Publisher('/error_q1', Float32, queue_size=1)
+        self.pub_e_q2 = rospy.Publisher('/error_q2', Float32, queue_size=1)
+        self.pub_e_q3 = rospy.Publisher('/error_q3', Float32, queue_size=1)
+
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/geom2", String,  self.cameraCallback2)
         rospy.Subscriber("/geom4", String,  self.cameraCallback4)
         rospy.Subscriber("/geom9", String,  self.cameraCallback9)
-        self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1) 
+        #self.pub_x = rospy.Publisher('/positionx', Float32, queue_size=1) 
         
         rospy.sleep(0.1) #time needed for initialization 
 
@@ -560,12 +625,20 @@ class Robot(threading.Thread):
             
         
 
-        print("cam", len(pointsCam))
+        #print("cam", len(pointsCam))
 
         return rotGen
 
-    def impedance_control(self, desired_pose, rotGen, calib_pointerTmatrix):
-        k = 1
+    def impedance_control(self, desired_pose, rotGen, speedK,  calib_pointerTmatrix):
+        c = 5.0
+        K1 = 1.0
+        K2 = 1.5
+        
+        k1 = (K1*speedK)/c
+        k2 = (K2*speedK)/c
+        
+        k = np.array([[k1,0,0,0,0,0], [0,k1,0,0,0,0], [0,0,k1,0,0,0], [0,0,0,k2,0,0], [0,0,0,0,k2,0], [0,0,0,0,0,k2]])
+        
         global pointsCam
         global pointsRobo
         self.mode = 'impedance controller'
@@ -574,15 +647,15 @@ class Robot(threading.Thread):
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
         
-
+        #print(k1)
         Tmatrix2 = self.cameraData2
         Tmatrix4 = self.cameraData4
         Tmatrix9 = self.cameraData9
         rotFix = np.array([[1,0,0,0], [0,-1,0,0], [0,0,-1,0], [0,0,0,1]])
-           
-        goal_marker = np.matmul(Tmatrix2, rotFix)
         if(np.mean(calib_pointerTmatrix) == 0):
             calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+           
+        goal_marker = np.matmul(Tmatrix2, rotFix)
         end_eff_marker = np.matmul(Tmatrix4, calib_pointerTmatrix)  
         #goal_marker = Tmatrix2
         #end_eff_marker = Tmatrix4
@@ -640,17 +713,19 @@ class Robot(threading.Thread):
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(end_eff_marker)
        
-        #print(error)
+        print(error)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
         #control_law = k/c*error
 	#print measured_force
-        control_law = k*error 
+
+        control_law = np.matmul(error,k) 
+        #control_law = error
         #control_law = control_law *testSelectionVector
         
         
-        return control_law
+        return [control_law, error]
         
 
     def tipToolCalibration(self, Tmatrix4, Tmatrix9):
@@ -814,15 +889,38 @@ class Robot(threading.Thread):
    
         Jac = matrix( [[(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.cos(q2)-math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.sin(q1)+math.cos(q1)*(math.cos(q5)*d6+d4), math.cos(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.cos(q1), math.cos(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), -(((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)*math.cos(q1)+math.sin(q1)*math.sin(q5))*d6, 0],[(((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)))*math.cos(q1)+math.sin(q1)*(math.cos(q5)*d6+d4), math.sin(q1)*(((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)+math.sin(q3)*(-math.sin(q4)*math.sin(q5)*d6-math.cos(q4)*d5)-a2)*math.sin(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)), math.sin(q1)*(((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))), (((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5)*math.cos(q3)-math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)))*math.sin(q1), -d6*(math.sin(q1)*((math.cos(q3)*math.cos(q4)-math.sin(q3)*math.sin(q4))*math.cos(q2)-math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4)))*math.cos(q5)-math.cos(q1)*math.sin(q5)), 0],[0, ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)+a2)*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), ((-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5+a3)*math.cos(q3)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+math.sin(q2)*((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5-a3)), (math.cos(q3)*(-math.cos(q4)*math.sin(q5)*d6+math.sin(q4)*d5)+math.sin(q3)*(math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5))*math.cos(q2)+((math.sin(q4)*math.sin(q5)*d6+math.cos(q4)*d5)*math.cos(q3)+math.sin(q3)*(math.cos(q4)*math.sin(q5)*d6-math.sin(q4)*d5))*math.sin(q2), ((-math.sin(q3)*math.cos(q4)-math.cos(q3)*math.sin(q4))*math.cos(q2)+math.sin(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*d6*math.cos(q5), 0],[0, math.sin(q1), math.sin(q1), math.sin(q1), -math.cos(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.cos(q1)+math.sin(q1)*math.cos(q5)],[0, -math.cos(q1), -math.cos(q1), -math.cos(q1), -math.sin(q1)*(math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))), (math.sin(q2)*(math.cos(q3)*math.sin(q4)+math.sin(q3)*math.cos(q4))+math.cos(q2)*(math.sin(q3)*math.sin(q4)-math.cos(q3)*math.cos(q4)))*math.sin(q5)*math.sin(q1)-math.cos(q1)*math.cos(q5)],[1, 0, 0, 0, math.sin(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3))-math.cos(q4)*(math.cos(q2)*math.cos(q3)-math.sin(q2)*math.sin(q3)), (math.sin(q4)*(math.sin(q2)*math.sin(q3)-math.cos(q2)*math.cos(q3))-math.cos(q4)*(math.sin(q3)*math.cos(q2)+math.sin(q2)*math.cos(q3)))*math.sin(q5)]])
         lambdaa = 0.001
-        #Jac_psudo = np.linalg.pinv(Jac)
-        Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
+        Jac_psudo = np.linalg.pinv(Jac)
+        #Jac_psudo = np.matmul(np.transpose(Jac), np.linalg.inv(np.matmul(Jac, np.transpose(Jac)) + np.multiply(lambdaa, np.identity(6))))
 
-        return Jac_psudo
+        return [Jac_psudo, Jac]
 
 #######################################
 ############ NEW FUNCTION #############
 #######################################
-
+    def q_dotNfunc(self):
+        q1 = self.q[0]
+	q2 = self.q[1]
+	q3 = self.q[2]
+	q4 = self.q[3]
+	q5 = self.q[4]
+	q6 = self.q[5]
+        q_array = np.array([q1,q2,q3,q4,q5,q6])
+        q_max = np.array([0, -0.78539816339744, 2.7052603405912108, 2.5307274153917778865, 2.234021442552, 2.0*np.pi])
+        q_min = np.array([-np.pi,-2.3736477827122, -2.7052603405912108, 0.3490658503988659, -2.0071286397934, -2.0*np.pi])
+        #q_max = np.array([2.0*np.pi, 2.0*np.pi, 2.0*np.pi, 2.5307274153917778865, 2.0*np.pi, 2.0*np.pi])
+        #q_min = np.array([-2.0*np.pi,-2.0*np.pi, -2.0*np.pi, -2.0*np.pi, -2.0*np.pi, -2.0*np.pi])
+        q_bar = (q1 + q2 + q3 + q4 + q5 +q6)/6
+        q_dotN = np.zeros(6)
+        delta_q = np.zeros(6)
+        for i in range(6):
+            delta_q[i] = q_max[i] - q_min[i]
+        
+        summ = 0
+        
+        summ = ((q1-q_bar)/delta_q[0]) + ((q1-q_bar)/delta_q[1]) + ((q1-q_bar)/delta_q[2]) + ((q1-q_bar)/delta_q[3]) + ((q1-q_bar)/delta_q[4]) + ((q1-q_bar)/delta_q[5]) 
+        q_dotN = np.gradient(q_array, summ)
+        #print(q_dotN)
+        return q_dotN
     def findPosition(self):
 	roll = 0.1158
         pitch = 0.266
@@ -896,7 +994,7 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 3, time = 0.05):
+    def q_dot(self, dq_value, acceleration = 1, time = 0.05):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
@@ -1159,34 +1257,35 @@ class Robot(threading.Thread):
         prev_error_4 = 1000
         prev_error_5 = 1000
         start_pose = np.array([position, quaternion])
+        rotGen = np.array([[ 0.08985331, -0.00145962, -0.02482539], [ 0.02502826, -0.00807571,  0.09328184], [ 0.01694535, -0.11573557, -0.01752532]])
         while (not rospy.is_shutdown()): 
-	
+	    global speedK 
             # Publishing, for being able to plot later
             
             #self.pub_x.publish(self.cameraData2[0][3])
             #self.pub_y.publish(self.getTaskPosi()[1]-start_pose[0][1])
             #self.pub_z.publish(self.getTaskPosi()[2]-start_pose[0][2])
             
-
-            forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
-            force_now = int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
-            global red
-            red = force_now*(239-30)/250 + 30 
-            global green
-            green = force_now*(23-35)/250 + 35
-            global blue
-            blue = force_now*(23-191)/250 + 191
+            #print(speedK)
+            #forceVar.set(str(int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)))            
+            #force_now = int(np.linalg.norm(self.getWrench()*np.array([1,1,1,0,0,0]))/10000)
+            #global red
+            #red = force_now*(239-30)/250 + 30 
+            #global green
+            #green = force_now*(23-35)/250 + 35
+            #global blue
+            #blue = force_now*(23-191)/250 + 191
 
             #global force_plot
             #force_plot = np.roll(force_plot,1)
             #force_plot[0]= force_now
             #print(force_now)
             
-
+            """
             res = resistance
             global str_res 
             str_res.set("Current resistance: "+str(res))
-
+            """
             pose = start_pose
             global atHome
             #atHome = self.proximityCheck(start_pose, 0.03)
@@ -1194,6 +1293,8 @@ class Robot(threading.Thread):
             #print(atHome)
             
             global isReversed
+            global isCalibrated
+            
             Tmatrix2 = self.cameraData2
             Tmatrix4 = self.cameraData4
             Tmatrix9 = self.cameraData9
@@ -1202,40 +1303,43 @@ class Robot(threading.Thread):
             ############ MAIN  ####################
             #######################################
             #self.findPosition()
-
             
-               
             
-            if(np.mean(rotGen[0]) == 0 or np.mean(rotGen[1]) == 0 or np.mean(rotGen[2]) == 0 ):
+            
+            
+            if(np.mean(rotGen) == 0 or isCalibrated == False):
                 rotGen = self.calibration(pointsCam, pointsRobo, pose)
                 calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
-                #print("##############")
+                print("##############")
                 #print(calib_pointerTmatrix)
-                
-            controller = self.impedance_control(pose, rotGen, calib_pointerTmatrix)
+            
+            controller, error = self.impedance_control(pose, rotGen, speedK, calib_pointerTmatrix)
             #controller = self.trajGenPoints(pose, trajCount)
             #print(controller)
-            Jac_psudo = self.jac_function()
+            Jac_psudo, Jac = self.jac_function()
 	    V_ref = np.transpose(controller)
 
-            # Future recom.     False/True key, "have you calibrated" if true then self.q_dot(dq_value)
-            
+
 	    dq = np.matmul(Jac_psudo, V_ref)
 	    dq_value = np.asarray(dq).reshape(-1)
-	    if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
-                print(controller)
+            q_dotN = self.q_dotNfunc()
+            
+            limitAvoid = np.matmul(np.identity(6) - np.matmul(Jac_psudo,Jac),q_dotN)
+            limitAvoid = np.asarray(limitAvoid).reshape(-1)
+            
+	    #if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
+            if(isCalibrated == True and np.mean(rotGen) != 0):
+                self.q_dot(dq_value + limitAvoid)
                 #print(rotGen)
-                #self.q_dot(dq_value)
-
-
+                
 
 
             
-            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2):
+            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and isCalibrated == True and abs(np.mean(controller[0:2])) > 0.02):
                 if(isReversed == False):             
-                    print("##################################################")
+                    #print("############# \n ############# \n ############# \n ###########")
                     rotGen = rotGen*-1
-                    isReversed = True
+                    #isReversed = True
                        
             prev_error_0 = abs(round(controller[0],4))
             prev_error_1 = abs(round(controller[1],4))
@@ -1248,12 +1352,23 @@ class Robot(threading.Thread):
             #######################################
             ############ Plots  ###################
             ####################################### 
-	    #self.pub_x.publish(Tmatrix2[0][3])
-            #self.pub_y.publish(Tmatrix2[1][3])
-            #self.pub_z.publish(Tmatrix2[2][3])
-            #self.pub_xd.publish(Tmatrix4[0][3])
-            #self.pub_yd.publish(Tmatrix4[1][3])
-            #self.pub_zd.publish(Tmatrix4[2][3])
+            """
+	    self.pub_x.publish(Tmatrix2[0][3])
+            self.pub_y.publish(Tmatrix2[1][3])
+            self.pub_z.publish(Tmatrix2[2][3])
+            self.pub_xd.publish(Tmatrix4[0][3])
+            self.pub_yd.publish(Tmatrix4[1][3])
+            self.pub_zd.publish(Tmatrix4[2][3])
+            self.pub_xb.publish(Tmatrix9[0][3])
+            self.pub_yb.publish(Tmatrix9[1][3])
+            self.pub_zb.publish(Tmatrix9[2][3])
+            """
+            self.pub_e_x.publish(error[0])
+            self.pub_e_y.publish(error[1])
+            self.pub_e_z.publish(error[2])
+            self.pub_e_q1.publish(error[3])
+            self.pub_e_q2.publish(error[4])
+            self.pub_e_q3.publish(error[5])
             
              
 
@@ -1275,10 +1390,10 @@ class Robot(threading.Thread):
 
 if __name__ == '__main__':
     try:
-        #robot_thread = Robot()
-        #robot_thread.setName("Robot Thread")
-        #robot_thread.daemon = True
-        #robot_thread.start()
+        robot_thread = Robot()
+        robot_thread.setName("Robot Thread")
+        robot_thread.daemon = True
+        robot_thread.start()
 
         gui_thread = Interface(root)
         gui_thread.setName("GUI Thread")
