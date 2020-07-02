@@ -29,7 +29,6 @@ current_marker_index = 1
 
 
 def talker():
-    pub = rospy.Publisher('chatter', String, queue_size=10)
     ch2 = rospy.Publisher('/geom2', String, queue_size=10)
     ch4 = rospy.Publisher('/geom4', String, queue_size=10)
     ch9 = rospy.Publisher('/geom9', String, queue_size=10)

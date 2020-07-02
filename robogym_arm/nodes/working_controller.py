@@ -54,6 +54,7 @@ blue = 191
 
 
 isCalibrated = False
+isTipToolCalibrated = False
 isReversed = False
 calib_pointerTmatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
 checkrow1 = 0.25
@@ -64,7 +65,7 @@ pointsRobo = np.array([[0,0,0]])
 rotGen = np.zeros((3,3))
 trajCount = 0
 speedK = 0
-
+joint1 = 0
 onoff_light = StringVar()
 onoff_light.set("red")
 
@@ -154,7 +155,7 @@ class Interface(threading.Thread):
         #Slidebar1
         self.slideBar = Scale(frame, from_=1, to=10, length=200, width= 20, tickinterval=1)
         self.slideBar.grid(row = 28, rowspan = 9, column = 2, sticky = S)
-        self.slideBar.set(5)
+        self.slideBar.set(1)
         speedK = self.slideBar.get()
         #global speedK
 
@@ -355,6 +356,8 @@ class Interface(threading.Thread):
       
     def yesButton(self):
         global isCalibrated
+        global isTipToolCalibrated
+        isTipToolCalibrated = True
         isCalibrated=True
         """
         popup = Toplevel()
@@ -473,19 +476,19 @@ class Robot(threading.Thread):
  
         #Publisher and Subscribers 
         self.listener = tf.TransformListener()
-        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=1)
+        self.pub = rospy.Publisher('/ur_driver/URScript', String, queue_size=5)
         #self.pub = rospy.Publisher('/ur_hardware_interface/script_command', String, queue_size=1)
         rospy.Subscriber("/joint_states", JointState, self.jointStateCallback)
         rospy.Subscriber("/tool_velocity", TwistStamped, self.toolVelocityCallback)
-        rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
+        #rospy.Subscriber("/wrench", WrenchStamped, self.wrenchCallback)
 
         #Sensor publishers and subscribers
         #self.pub_reset = rospy.Publisher('/optoforce_node/reset', Bool, queue_size=1)
         #rospy.Subscriber("/optoforce_node/wrench_HEXHA094", WrenchStamped, self.wrenchSensorCallback)
-        self.pub_reset = rospy.Publisher('/ethdaq_zero', Bool, queue_size=1)
+        #self.pub_reset = rospy.Publisher('/ethdaq_zero', Bool, queue_size=1)
         #Publishers for the position
+        """
         self.pub_x = rospy.Publisher('/goal_x', Float32, queue_size=1)
-        self.pub_x2 = rospy.Publisher('/goal_x2', Float32, queue_size=1)
         self.pub_y = rospy.Publisher('/goal_y', Float32, queue_size=1)
         self.pub_z = rospy.Publisher('/goal_z', Float32, queue_size=1)
         self.pub_xd = rospy.Publisher('/position_x', Float32, queue_size=1)
@@ -494,12 +497,21 @@ class Robot(threading.Thread):
         self.pub_xb = rospy.Publisher('/camera_pos_x', Float32, queue_size=1)
         self.pub_yb = rospy.Publisher('/camera_pos_y', Float32, queue_size=1)
         self.pub_zb = rospy.Publisher('/camera_pos_z', Float32, queue_size=1)
-        self.pub_e_x = rospy.Publisher('/error_x', Float32, queue_size=1)
-        self.pub_e_y = rospy.Publisher('/error_y', Float32, queue_size=1)
-        self.pub_e_z = rospy.Publisher('/error_z', Float32, queue_size=1)
-        self.pub_e_q1 = rospy.Publisher('/error_q1', Float32, queue_size=1)
-        self.pub_e_q2 = rospy.Publisher('/error_q2', Float32, queue_size=1)
-        self.pub_e_q3 = rospy.Publisher('/error_q3', Float32, queue_size=1)
+        """
+        self.pub_endeff_x = rospy.Publisher('/tool_x', Float32, queue_size=1)
+        self.pub_endeff_y = rospy.Publisher('/tool_y', Float32, queue_size=1)
+        self.pub_endeff_z = rospy.Publisher('/tool_z', Float32, queue_size=1)
+        self.pub_endeff_q1 = rospy.Publisher('/tool_q1', Float32, queue_size=1)
+        self.pub_endeff_q2 = rospy.Publisher('/tool_q2', Float32, queue_size=1)
+        self.pub_endeff_q3 = rospy.Publisher('/tool_q3', Float32, queue_size=1)
+ 
+        self.pub_goal_x = rospy.Publisher('/goal_x', Float32, queue_size=1)
+        self.pub_goal_y = rospy.Publisher('/goal_y', Float32, queue_size=1)
+        self.pub_goal_z = rospy.Publisher('/goal_z', Float32, queue_size=1)
+        self.pub_goal_q1 = rospy.Publisher('/goal_q1', Float32, queue_size=1)
+        self.pub_goal_q2 = rospy.Publisher('/goal_q2', Float32, queue_size=1)
+        self.pub_goal_q3 = rospy.Publisher('/goal_q3', Float32, queue_size=1)
+
 
         rospy.Subscriber("/ethdaq_data_raw", WrenchStamped, self.wrenchSensorCallback)
         rospy.Subscriber("/ethdaq_data", WrenchStamped, self.wrenchSensorCallback)
@@ -510,8 +522,8 @@ class Robot(threading.Thread):
         
         rospy.sleep(0.1) #time needed for initialization 
 
-        self.force_sensor_reset()
-        self.force_offset = self.getWrenchNoOffset()
+        #self.force_sensor_reset()
+        #self.force_offset = self.getWrenchNoOffset()
         #self.spin()
 
 
@@ -536,7 +548,9 @@ class Robot(threading.Thread):
     def calibration(self, pointsCamLista, pointsRoboLista, desired_pose):
         global pointsCam
         global pointsRobo
+        
         actual_position = self.getTaskPosi()
+        #print(actual_position)
         desired_position_base = desired_pose[0]
         desired_quaternion = desired_pose[1]
         Tmatrix2 = self.cameraData2
@@ -554,8 +568,8 @@ class Robot(threading.Thread):
             actual_pos_camera_tmp[i] = round(actual_pos_camera[i], roundVariable)
         
         #print(Tmatrix4)
-
-
+        
+        #print(np.mean(actual_pos_camera, axis = 0))
 
         if(len(pointsCam) > 100):
             switchonoff = False
@@ -566,12 +580,13 @@ class Robot(threading.Thread):
             dRobo = np.copy(pointsRoboReal)
             meanCam = np.mean(pointsCamReal,axis=0)
             meanRobo = np.mean(pointsRoboReal,axis=0)
+            
             for i in range(len(pointsCamReal)):
                 for j in range(len(pointsCamReal[0])-1):
                     dCam[i][j] = pointsCamReal[i][j] - meanCam[j] 
                     dRobo[i][j] = pointsRoboReal[i][j] - meanRobo[j]
             
-
+            
             """
             stdRobo = np.std(dRobo, axis = 0, ddof = 1)
             stdCam = np.std(dCam, axis = 0, ddof = 1)
@@ -632,10 +647,10 @@ class Robot(threading.Thread):
     def impedance_control(self, desired_pose, rotGen, speedK,  calib_pointerTmatrix):
         c = 5.0
         K1 = 1.0
-        K2 = 1.5
+        K2 = 1.0
         
-        k1 = (K1*speedK)/c
-        k2 = (K2*speedK)/c
+        k1 = K1 #(K1*speedK)/c
+        k2 = (K2*speedK)
         
         k = np.array([[k1,0,0,0,0,0], [0,k1,0,0,0,0], [0,0,k1,0,0,0], [0,0,0,k2,0,0], [0,0,0,0,k2,0], [0,0,0,0,0,k2]])
         
@@ -661,8 +676,7 @@ class Robot(threading.Thread):
         #end_eff_marker = Tmatrix4
         
         calibration_marker = Tmatrix9
-
-
+        
         desired_pos_camera = goal_marker[0:3,3:4].flatten()/1000
         actual_pos_camera = end_eff_marker[0:3,3:4].flatten()/1000
         
@@ -712,20 +726,24 @@ class Robot(threading.Thread):
     
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(end_eff_marker)
-       
-        print(error)
+
+        #print(error)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
         #control_law = k/c*error
 	#print measured_force
 
-        control_law = np.matmul(error,k) 
+        control_law = np.matmul(error,k)
+        #print(control_law) 
         #control_law = error
         #control_law = control_law *testSelectionVector
         
-        
-        return [control_law, error]
+        data_quat_end_eff = quaternions_endeffector[0:3]
+        data_quat_goal = quaternions_goal[0:3]
+        data_pos_end_eff = np.array([end_eff_marker[0][3], end_eff_marker[1][3], end_eff_marker[2][3]])
+        data_pos_goal = np.array([goal_marker[0][3], goal_marker[1][3], goal_marker[2][3]])
+        return [control_law, data_quat_end_eff, data_quat_goal, data_pos_end_eff, data_pos_goal]
         
 
     def tipToolCalibration(self, Tmatrix4, Tmatrix9):
@@ -897,16 +915,25 @@ class Robot(threading.Thread):
 #######################################
 ############ NEW FUNCTION #############
 #######################################
-    def q_dotNfunc(self):
+
+
+
+    def q_dotNfunc_temp(self):
         q1 = self.q[0]
-	q2 = self.q[1]
+
+        return q1
+
+
+    def q_dotNfunc(self, joint1):
+        q1 = self.q[0]
+        q2 = self.q[1]
 	q3 = self.q[2]
 	q4 = self.q[3]
 	q5 = self.q[4]
 	q6 = self.q[5]
         q_array = np.array([q1,q2,q3,q4,q5,q6])
-        q_max = np.array([0, -0.78539816339744, 2.7052603405912108, 2.5307274153917778865, 2.234021442552, 2.0*np.pi])
-        q_min = np.array([-np.pi,-2.3736477827122, -2.7052603405912108, 0.3490658503988659, -2.0071286397934, -2.0*np.pi])
+        q_max = np.array([q1+2.0943951023, -0.78539816339744, 2.7052603405912108, 2.5307274153917778865, 2.234021442552, 2.0*np.pi])
+        q_min = np.array([q1-2.0943951023,-2.3736477827122, -2.7052603405912108, 0.3490658503988659, -2.0071286397934, -2.0*np.pi])
         #q_max = np.array([2.0*np.pi, 2.0*np.pi, 2.0*np.pi, 2.5307274153917778865, 2.0*np.pi, 2.0*np.pi])
         #q_min = np.array([-2.0*np.pi,-2.0*np.pi, -2.0*np.pi, -2.0*np.pi, -2.0*np.pi, -2.0*np.pi])
         q_bar = (q1 + q2 + q3 + q4 + q5 +q6)/6
@@ -994,7 +1021,7 @@ class Robot(threading.Thread):
         #print(command)
         self.pub.publish(command)
 
-    def q_dot(self, dq_value, acceleration = 1, time = 0.05):
+    def q_dot(self, dq_value, acceleration = 1, time = 0.1):
         command = "speedj(" + np.array2string(dq_value, precision= 3, separator=',') +","+ \
         str(acceleration) + "," + str(time) + ")" #0.3,0.2
         #rospy.loginfo(control_law)
@@ -1244,7 +1271,7 @@ class Robot(threading.Thread):
 
         #print Jac_psudo
         global rotGen
-      
+        global joint1
         calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
 	
 	position = np.array([0, 0, 0])
@@ -1257,7 +1284,7 @@ class Robot(threading.Thread):
         prev_error_4 = 1000
         prev_error_5 = 1000
         start_pose = np.array([position, quaternion])
-        rotGen = np.array([[ 0.08985331, -0.00145962, -0.02482539], [ 0.02502826, -0.00807571,  0.09328184], [ 0.01694535, -0.11573557, -0.01752532]])
+        rotGen = np.array([[-0.11842037, -0.07501379, -0.03601192], [-0.08699017,  0.01884106,  0.07684628], [ 0.00045282,  0.11398975, -0.02685455]])
         while (not rospy.is_shutdown()): 
 	    global speedK 
             # Publishing, for being able to plot later
@@ -1295,7 +1322,7 @@ class Robot(threading.Thread):
             global isReversed
             global isCalibrated
             
-            Tmatrix2 = self.cameraData2
+            #Tmatrix2 = self.cameraData2
             Tmatrix4 = self.cameraData4
             Tmatrix9 = self.cameraData9
             #print("hej", Tmatrix4)
@@ -1306,14 +1333,16 @@ class Robot(threading.Thread):
             
             
             
-            
-            if(np.mean(rotGen) == 0 or isCalibrated == False):
-                rotGen = self.calibration(pointsCam, pointsRobo, pose)
+            if(isTipToolCalibrated == False):
                 calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
-                print("##############")
+            if(np.mean(rotGen) == 0 and isCalibrated == False):
+                rotGen = self.calibration(pointsCam, pointsRobo, pose)
+                joint1 = self.q_dotNfunc_temp()
+                #print("##############")
                 #print(calib_pointerTmatrix)
             
-            controller, error = self.impedance_control(pose, rotGen, speedK, calib_pointerTmatrix)
+            controller, quat_endeff, quat_goal, pos_endeff, pos_goal = self.impedance_control(pose, rotGen, speedK, calib_pointerTmatrix)
+
             #controller = self.trajGenPoints(pose, trajCount)
             #print(controller)
             Jac_psudo, Jac = self.jac_function()
@@ -1321,21 +1350,23 @@ class Robot(threading.Thread):
 
 
 	    dq = np.matmul(Jac_psudo, V_ref)
-	    dq_value = np.asarray(dq).reshape(-1)
-            q_dotN = self.q_dotNfunc()
+	    Jpdot = np.asarray(dq).reshape(-1)
             
+            
+            q_dotN = self.q_dotNfunc(joint1)
+            #print(rotGen)
             limitAvoid = np.matmul(np.identity(6) - np.matmul(Jac_psudo,Jac),q_dotN)
             limitAvoid = np.asarray(limitAvoid).reshape(-1)
-            
+            dq_value = Jpdot
 	    #if(np.mean(rotGen[0]) != 0 or np.mean(rotGen[1]) != 0 or np.mean(rotGen[2]) != 0 ):
             if(isCalibrated == True and np.mean(rotGen) != 0):
-                self.q_dot(dq_value + limitAvoid)
+                self.q_dot(dq_value)
                 #print(rotGen)
                 
 
 
-            
-            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and isCalibrated == True and abs(np.mean(controller[0:2])) > 0.02):
+            #print("mean", np.mean(abs(controller[0:2])))
+            if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and isCalibrated == True and np.mean(abs(controller[0:2])) > 0.014):
                 if(isReversed == False):             
                     #print("############# \n ############# \n ############# \n ###########")
                     rotGen = rotGen*-1
@@ -1363,13 +1394,24 @@ class Robot(threading.Thread):
             self.pub_yb.publish(Tmatrix9[1][3])
             self.pub_zb.publish(Tmatrix9[2][3])
             """
-            self.pub_e_x.publish(error[0])
-            self.pub_e_y.publish(error[1])
-            self.pub_e_z.publish(error[2])
-            self.pub_e_q1.publish(error[3])
-            self.pub_e_q2.publish(error[4])
-            self.pub_e_q3.publish(error[5])
             
+
+
+
+
+            self.pub_endeff_x.publish(pos_endeff[0])
+            self.pub_endeff_y.publish(pos_endeff[1])
+            self.pub_endeff_z.publish(pos_endeff[2])
+            self.pub_endeff_q1.publish(quat_endeff[0])
+            self.pub_endeff_q2.publish(quat_endeff[1])
+            self.pub_endeff_q3.publish(quat_endeff[2])
+            
+            self.pub_goal_x.publish(pos_goal[0])
+            self.pub_goal_y.publish(pos_goal[1])
+            self.pub_goal_z.publish(pos_goal[2])
+            self.pub_goal_q1.publish(quat_goal[0])
+            self.pub_goal_q2.publish(quat_goal[1])
+            self.pub_goal_q3.publish(quat_goal[2])
              
 
 
