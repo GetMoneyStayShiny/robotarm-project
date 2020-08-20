@@ -54,6 +54,7 @@ blue = 191
 clockCount = 0
 collectedPoints = 0
 
+testMarker = False
 prePlannedReady = False
 readyToCollect3D = False
 readyToGo = False
@@ -108,8 +109,12 @@ robot will no longer receive any force input.
 """
 
 explination_string = """
-This is the calibration verification Interface! \n 
-Please take the calibration tool and calibrate the tip of the tool when the tool is correctly placed at the robot. Once placed correctly cover the viewing ray for the markers to save the current values. Comfirm the numbers you see above, The values for X, Y and Z should be approx. .... Adjust the calibration unit until the green field lights up.
+This is the calibration verification interface. \n 
+Firt, calibrate the tip of the the tool.
+Second, find a goal position and save it thorugh the interface.
+Lastly, collect 3D points. Use the free-drive function to manually move around the robot \n end-effector until 100 points have been collected. 
+Remember to hold the end-effector so that it faces the camera, and collect points all \n around the robot, in diferent directions and depths. The images presented to the right \n illustrates how to calibrate the system.
+Note: Use the stop button in the interface to stop or pause the movement of the robot. But be ready with the emergency break on the teach pendant in case of unexpected collsions. 
 """
 #Please move the robot in the vision field of the camera in order to collect 3D points. We have estimated 100 points should be enough. After the calibration is complete and the robot calculates the position of the camera, you should verify that this works. Pick up the verification marker and move it around very close to the robots end effector, see if the marker follows you as inteded. IF so the calibration is complete! If for some reason the robot does not work as expected. Check the correct checkbox to redo the calibration. Each time the collected points counter will increase with 30 extra points!  
 
@@ -153,6 +158,9 @@ class Interface(threading.Thread):
 
         self.PP_done = Button(frame, text="Save goal position",command=self.prePlannedFunc)
         self.PP_done.grid(row=10, column=2,padx = 2, pady = 2, sticky=N+S+E+W)
+
+        self.test_calibration = Button(frame, text="Verify the calibration",command=self.testCalibration)
+        self.test_calibration.grid(row=26, column=1,padx = 2, pady = 2, sticky=N+S+E+W)
 
         self.save_unit = Button(frame, text="Save tool tip calibration",command=self.saveUnit)
         self.save_unit.grid(row=10, column=1,padx = 2, pady = 2, sticky=N+S+E+W)
@@ -233,7 +241,7 @@ class Interface(threading.Thread):
         text_button.grid(row=21, rowspan=22, column=1, columnspan = 10, padx=6, pady=6,sticky=N)
         """
         #Explain text
-        text_exercise = Text(frame, height=10, width=90)
+        text_exercise = Text(frame, height=13, width=90)
         text_exercise.tag_configure('bold_italics', font=('Arial', 12, 'bold', 'italic'))
         text_exercise.tag_configure('big', font=('Verdana', 12, 'bold'))
         text_exercise.tag_configure('color', foreground='#476042', font=('Tempus Sans ITC', 12, 'bold'))
@@ -252,10 +260,14 @@ class Interface(threading.Thread):
         #Display numbers
         self.txt_points = Label(frame, text = "Number of collected 3D points: ", font = ('Avenir Next', 13))
         self.txt_points.grid(row=23, rowspan=1, column=0, columnspan = 2, padx=15, pady=2 ,sticky=N+W)
-        self.txt_pointsCollected = Label(frame, text = len(pointsCam), font = ('Avenir Next', 13))
+        self.txt_pointsCollected = Label(frame, text = len(pointsCam) , font = ('Avenir Next', 13))
         self.txt_pointsCollected.grid(row=23, rowspan=1, column=2, columnspan = 2, padx=2, pady=2 ,sticky=N+W)
+        self.txt_pointsCollected2 = Label(frame, text = 100 , font = ('Avenir Next', 13))
+        self.txt_pointsCollected2.grid(row=23, rowspan=1, column=4, columnspan = 1, padx=2, pady=2 ,sticky=N+W)
+        self.txt_pointsCollected3 = Label(frame, text = "/" , font = ('Avenir Next', 13))
+        self.txt_pointsCollected3.grid(row=23, rowspan=1, column=3, columnspan = 1, padx=2, pady=2 ,sticky=N+W)
         self.update_pointsCollected()
-
+        self.update_pointsCollected2()
 
 
         
@@ -337,6 +349,10 @@ class Interface(threading.Thread):
         self.txt_pointsCollected.configure(text = len(pointsCam))
         self.txt_pointsCollected.after(100, self.update_pointsCollected)
         #print(len(pointsCam)) # remove when verified that it works
+    def update_pointsCollected2(self):
+        global collectedPoints
+        self.txt_pointsCollected2.configure(text = 101+collectedPoints)
+        self.txt_pointsCollected2.after(100, self.update_pointsCollected2)
 
     def guide_z_false(self):
         global guide_z
@@ -429,6 +445,27 @@ class Interface(threading.Thread):
         self.B1 = Button(popup, text="OK", command=popup_done).pack()
 
 
+    def testCalibration(self):
+        global testMarker
+        testMarker = True
+        popup = Toplevel()
+            #self.root.withdraw()
+        popup.grab_set()
+        popup.title("Test your calibration")
+        popup.geometry(str(w/2) + 'x' + str(h/10))
+        popup.geometry("+300+400")
+        #popup.geometry("+d%")
+        explanation = "Pick up marker 9 and try to let the end effector to follow your marker, if not reset calibration"
+        popw2 = Label(popup, justify=LEFT, padx=200, pady=25, height=3,width=10, text=explanation).pack()
+        def popup_done():
+            global testMarker
+            popup.destroy()
+            #self.root.deiconify()
+            testMarker = False
+            popup.grab_release()
+        
+        self.B1 = Button(popup, text="OK", command=popup_done).pack()
+
 
     def cali_done(self):
         global readyToGo
@@ -469,19 +506,21 @@ class Interface(threading.Thread):
         """
     def stopButton(self):
         global readyToGo
+        global testMarker
         #global prePlannedReady
-
+        testMarker = False
         readyToGo=False
         #prePlannedReady = False
 
 
     def reset(self):
-        global rotGen, collectedPoints, readyToGo, prePlannedReady, isTipToolCalibrated, pointsCam, pointsRobo, readyToCollect3D
+        global rotGen, collectedPoints, readyToGo, prePlannedReady, isTipToolCalibrated, pointsCam, pointsRobo, readyToCollect3D, testMarker
         
         isTipToolCalibrated = False
         readyToGo=False
         prePlannedReady = False
         readyToCollect3D = False
+        testMarker = False
         pointsCam = np.array([[0,0,0,0]])
         pointsRobo = np.array([[0,0,0]])
         rotGen = np.zeros((3,3))
@@ -767,8 +806,8 @@ class Robot(threading.Thread):
 
     def impedance_control(self,Tmatrix2, Tmatrix4, desired_pose, rotGen, speedK,  calib_pointerTmatrix, prePlanMatrix):
         c = 5.0
-        K1 = 1.0
-        K2 = 3.0
+        K1 = 1.0/c
+        K2 = 3.0/c
         
         k1 = (K1*speedK)
         k2 = (K2*speedK)
@@ -792,7 +831,7 @@ class Robot(threading.Thread):
             prePlanMatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
            
         goal_marker = np.matmul(Tmatrix2, prePlanMatrix)
-        print(goal_marker)
+        #print(goal_marker)
         #goal_marker = np.matmul(Tmatrix2, rotFix)
         end_eff_marker = np.matmul(Tmatrix4, calib_pointerTmatrix)  
         #goal_marker = Tmatrix2
@@ -846,12 +885,20 @@ class Robot(threading.Thread):
 
         error_ang = np.matmul(rotGen2 , error_angle[0:3])
         error = np.append(error_pos_camera, error_ang)
-
-        #print(error)
+        """
+        print("pos_start", actual_pos_camera*1000)
+        print("quats_start", quaternions_endeffector[0:3])
+        print("pos_goal", desired_pos_camera*1000)
+        print("quats_goal", quaternions_goal[0:3])
+        print(err)
+        print(error_angle)
+        print("##########################")
+        print(error)
+        """
         #error = np.append(error_position, error_angle[0:3]) #Why can we use only error_angle[0:3]?
         #print(end_eff_marker)
 
-        #print(error)
+        print(error)
         #control_law = kp*error + measured_force - kd*velocity
         #control_law = kp*error - kd*velocity
         #control_law = kp*error
@@ -1459,8 +1506,9 @@ class Robot(threading.Thread):
         #print Jac_psudo
         global rotGen
         global joint1
-        calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+        #calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
 	Tmatrix4_temp = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+        Tmatrix2_temp = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
 	position = np.array([0, 0, 0])
         quaternion = np.array([0, 0,  0,  0])
         position, quaternion = self.goalPosition(position,quaternion)
@@ -1471,9 +1519,15 @@ class Robot(threading.Thread):
         prev_error_4 = 1000
         prev_error_5 = 1000
         start_pose = np.array([position, quaternion])
-        rotGen = np.array([[ 0.06154211,  0.02248216, -0.0107906 ], [ 0.01696782, -0.01469182,  0.09070844], [-0.00825815, -0.07271151, -0.03918338]])
-        #rotGen = rotGen*-1
-        
+        rotGen = np.array([[-0.08024449, -0.02350337, -0.02854209], [-0.00398515,  0.02342353, -0.0816983 ], [ 0.01430871,  0.08780005,  0.05782987]])
+
+        rotGen = rotGen*-1
+        calib_pointerTmatrix = np.array([[-3.11358795e-01, -1.08359100e-01, -9.44092484e-01, -2.85460008e+00], [ 6.26798808e-01, -7.70144464e-01, -1.18330750e-01, -1.44690665e+02], [-7.14267999e-01, -6.28597794e-01,  3.07713883e-01, -1.50225090e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+
+        prePlanMatrix = np.array([[  -0.62060212,   -0.54349192,    0.5652191,  2.68263410e+01], [   0.12523996,   -0.78027317,   -0.61277577, -3.41803015e+01], [   0.77405928,   -0.30949908,    0.55229872, -1.14585345e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+
+
+
         global clockCount
         while (not rospy.is_shutdown()): 
 	    global speedK 
@@ -1514,6 +1568,7 @@ class Robot(threading.Thread):
             global readyToCollect3D
             global prePlannedReady
             global collectedPoints
+            global testMarker
             
             Tmatrix2 = self.cameraData2
             Tmatrix4 = self.cameraData4
@@ -1530,20 +1585,29 @@ class Robot(threading.Thread):
             #self.findPosition()
             
             
-            
-            if(isTipToolCalibrated == False):
-                calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
-            if(prePlannedReady == False):
-                prePlanMatrix = self.prePlanPosition(calib_pointerTmatrix, Tmatrix4, Tmatrix2)
-            if(readyToCollect3D == True and isTipToolCalibrated == True and prePlannedReady == True and np.mean(rotGen) == 0):
+            #print(testMarker)
+            #if(isTipToolCalibrated == False):
+                #calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
+            #if(prePlannedReady == False):
+                #prePlanMatrix = self.prePlanPosition(calib_pointerTmatrix, Tmatrix4, Tmatrix2)
+            if(readyToCollect3D == True and isTipToolCalibrated == True and prePlannedReady == True):
                 rotGen = self.calibration(Tmatrix4_temp, pose, collectedPoints)
-            if(readyToGo == False):
-                joint1,_,_,_,_,_ = self.get_jointAngles()
+            #if(readyToGo == False):
+                #joint1,_,_,_,_,_ = self.get_jointAngles()
                 #print("##############")
                 #print(calib_pointerTmatrix)
-            print(prePlanMatrix)
+            
+            print(rotGen)
             #print(calib_pointerTmatrix)
+            
             print("##########################")
+            
+            if(testMarker == True):
+                Tmatrix2_temp = self.cameraData9
+                prePlanMatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+                calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+            
+            print(Tmatrix2_temp)
             controller, quat_endeff, quat_goal, pos_endeff, pos_goal = self.impedance_control(Tmatrix2_temp, Tmatrix4_temp, pose, rotGen, speedK, calib_pointerTmatrix, prePlanMatrix)
 
             #controller = self.trajGenPoints(pose, trajCount)
@@ -1561,7 +1625,8 @@ class Robot(threading.Thread):
             q_dotN, q_max, q_min = self.q_dotNfunc(joint1)
             
             #print(rotGen)
-            
+            #print(prePlanMatrix)
+            #print(calib_pointerTmatrix)
 
 
             
@@ -1579,7 +1644,7 @@ class Robot(threading.Thread):
             
             
      
-            if(readyToGo == True):
+            if(readyToGo == True or testMarker == True):
                 self.q_dot(dq_value)
                 print("KOOOOOOOOOOOOOOOOOOOOOOOOOOOOR")
            
@@ -1589,7 +1654,7 @@ class Robot(threading.Thread):
             if(abs(round(controller[0],4)) > prev_error_0 and abs(round(controller[1],4)) > prev_error_1 and abs(round(controller[2],4)) > prev_error_2 and readyToGo == True and np.mean(abs(controller[0:2])) > 0.014):
                 if(isReversed == False):             
                     print("############# \n ############# \n ############# \n ###########")
-                    rotGen = rotGen*-1
+                    #rotGen = rotGen*-1
                     #isReversed = True
                        
             prev_error_0 = abs(round(controller[0],4))
