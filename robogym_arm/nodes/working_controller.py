@@ -66,6 +66,7 @@ prePlanMatrix = np.array([[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]])
 checkrow1 = 0.25
 checkrow2 = 0.25
 checkrow3 = 0.25
+flipTarget = False
 
 checkrowPrePlan1 = 0.25
 checkrowPrePlan2 = 0.25
@@ -459,9 +460,11 @@ class Interface(threading.Thread):
         popw2 = Label(popup, justify=LEFT, padx=200, pady=25, height=3,width=10, text=explanation).pack()
         def popup_done():
             global testMarker
+            global flipTarget
             popup.destroy()
             #self.root.deiconify()
             testMarker = False
+            flipTarget = False 
             popup.grab_release()
         
         self.B1 = Button(popup, text="OK", command=popup_done).pack()
@@ -804,11 +807,13 @@ class Robot(threading.Thread):
 
         return rotGen
 
-    def impedance_control(self,Tmatrix2, Tmatrix4, desired_pose, rotGen, speedK,  calib_pointerTmatrix, prePlanMatrix):
+    def impedance_control(self,Tmatrix2, Tmatrix4, desired_pose, rotGen, speedK,  calib_pointerTmatrix, prePlanMatrix, flipTarget):
+        
         c = 5.0
         K1 = 1.0/c
         K2 = 3.0/c
-        
+        if(flipTarget == True):
+            K2 = 0
         k1 = (K1*speedK)
         k2 = (K2*speedK)
         
@@ -829,7 +834,17 @@ class Robot(threading.Thread):
             calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
         if(np.mean(prePlanMatrix) == 0):
             prePlanMatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
-           
+        
+
+
+        if(flipTarget == True):
+            prePlanMatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+            calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])   
+        else: 
+            calib_pointerTmatrix = np.array([[-3.11358795e-01, -1.08359100e-01, -9.44092484e-01, -2.85460008e+00], [ 6.26798808e-01, -7.70144464e-01, -1.18330750e-01, -1.44690665e+02], [-7.14267999e-01, -6.28597794e-01,  3.07713883e-01, -1.50225090e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+
+        prePlanMatrix = np.array([[-3.45769419e-01, -5.88027866e-02,  9.36478012e-01,  2.81442090e+01], [ 2.49882453e-02, -9.98257213e-01, -5.34606259e-02, -3.43502257e+01], [ 9.37986627e-01,  4.91765570e-03,  3.46628721e-01, -1.15093392e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+
         goal_marker = np.matmul(Tmatrix2, prePlanMatrix)
         #print(goal_marker)
         #goal_marker = np.matmul(Tmatrix2, rotFix)
@@ -1506,6 +1521,7 @@ class Robot(threading.Thread):
         #print Jac_psudo
         global rotGen
         global joint1
+        global flipTarget
         #calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
 	Tmatrix4_temp = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
         Tmatrix2_temp = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
@@ -1519,15 +1535,14 @@ class Robot(threading.Thread):
         prev_error_4 = 1000
         prev_error_5 = 1000
         start_pose = np.array([position, quaternion])
-        rotGen = np.array([[-0.08024449, -0.02350337, -0.02854209], [-0.00398515,  0.02342353, -0.0816983 ], [ 0.01430871,  0.08780005,  0.05782987]])
+        rotGen_X = np.array([[ 0.09205812,  0.02242423,  0.01592694], [-0.00165674, -0.03900999,  0.09245753], [ 0.0136656,  -0.08586921, -0.04361831]])
 
-        rotGen = rotGen*-1
+        #rotGen = rotGen*-1
         calib_pointerTmatrix = np.array([[-3.11358795e-01, -1.08359100e-01, -9.44092484e-01, -2.85460008e+00], [ 6.26798808e-01, -7.70144464e-01, -1.18330750e-01, -1.44690665e+02], [-7.14267999e-01, -6.28597794e-01,  3.07713883e-01, -1.50225090e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
 
-        prePlanMatrix = np.array([[  -0.62060212,   -0.54349192,    0.5652191,  2.68263410e+01], [   0.12523996,   -0.78027317,   -0.61277577, -3.41803015e+01], [   0.77405928,   -0.30949908,    0.55229872, -1.14585345e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+        #prePlanMatrix = np.array([[  -0.62060212,   -0.54349192,    0.5652191,  2.68263410e+01], [   0.12523996,   -0.78027317,   -0.61277577, -3.41803015e+01], [   0.77405928,   -0.30949908,    0.55229872, -1.14585345e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
 
-
-
+        prePlanMatrix = np.array([[-3.45769419e-01, -5.88027866e-02,  9.36478012e-01,  2.81442090e+01], [ 2.49882453e-02, -9.98257213e-01, -5.34606259e-02, -3.43502257e+01], [ 9.37986627e-01,  4.91765570e-03,  3.46628721e-01, -1.15093392e+02], [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
         global clockCount
         while (not rospy.is_shutdown()): 
 	    global speedK 
@@ -1586,29 +1601,32 @@ class Robot(threading.Thread):
             
             
             #print(testMarker)
+            #
             #if(isTipToolCalibrated == False):
-                #calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
+            #    calib_pointerTmatrix = self.tipToolCalibration(Tmatrix4, Tmatrix9)
             #if(prePlannedReady == False):
                 #prePlanMatrix = self.prePlanPosition(calib_pointerTmatrix, Tmatrix4, Tmatrix2)
-            if(readyToCollect3D == True and isTipToolCalibrated == True and prePlannedReady == True):
+            
+            if(readyToCollect3D == True and np.mean(rotGen) == 0): #and prePlannedReady == True):
                 rotGen = self.calibration(Tmatrix4_temp, pose, collectedPoints)
-            #if(readyToGo == False):
-                #joint1,_,_,_,_,_ = self.get_jointAngles()
+            if(readyToGo == False):
+                joint1,_,_,_,_,_ = self.get_jointAngles()
                 #print("##############")
                 #print(calib_pointerTmatrix)
             
-            print(rotGen)
-            #print(calib_pointerTmatrix)
+            #print(flipTarget)
+            #print(rotGen)
             
             print("##########################")
             
             if(testMarker == True):
                 Tmatrix2_temp = self.cameraData9
-                prePlanMatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
-                calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+                flipTarget = True
+                #prePlanMatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
+                #calib_pointerTmatrix = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]])
             
-            print(Tmatrix2_temp)
-            controller, quat_endeff, quat_goal, pos_endeff, pos_goal = self.impedance_control(Tmatrix2_temp, Tmatrix4_temp, pose, rotGen, speedK, calib_pointerTmatrix, prePlanMatrix)
+            #print(Tmatrix2_temp)
+            controller, quat_endeff, quat_goal, pos_endeff, pos_goal = self.impedance_control(Tmatrix2_temp, Tmatrix4_temp, pose, rotGen_X, speedK, calib_pointerTmatrix, prePlanMatrix, flipTarget)
 
             #controller = self.trajGenPoints(pose, trajCount)
             #print(controller)
@@ -1683,7 +1701,7 @@ class Robot(threading.Thread):
 
 
 
-            
+            """
             self.pub_endeff_x.publish(pos_endeff[0])
             self.pub_endeff_y.publish(pos_endeff[1])
             self.pub_endeff_z.publish(pos_endeff[2])
@@ -1697,7 +1715,7 @@ class Robot(threading.Thread):
             self.pub_goal_q1.publish(quat_goal[0])
             self.pub_goal_q2.publish(quat_goal[1])
             self.pub_goal_q3.publish(quat_goal[2])
-            
+            """
             radToDeg = 180.0/np.pi
             j1,j2,j3,j4,j5,j6 = self.get_jointAngles()
             #print(j2)
